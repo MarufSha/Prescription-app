@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Prescription App",
   description: "Prescription App made with Next.js",
+  icons: {
+    icon: "/images/prescription.png", // <-- root-relative!
+  },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
