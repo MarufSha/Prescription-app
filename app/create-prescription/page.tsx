@@ -336,7 +336,47 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
-            <Button type="submit">Submit</Button>
+            <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
+              <FormField
+                control={form.control}
+                name="investigations"
+                render={({ field }) => (
+                  <FormItem className="col-span-3">
+                    <FormLabel>Investigations</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="w-full"
+                        placeholder="Enter Investigations"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
+              <FormField
+                control={form.control}
+                name="advice"
+                render={({ field }) => (
+                  <FormItem className="col-span-3">
+                    <FormLabel>Advice</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="w-full"
+                        placeholder="Enter Advice"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <Button type="submit" variant={"blue"}>
+              Submit
+            </Button>
           </form>
         </Form>
       </Card>
