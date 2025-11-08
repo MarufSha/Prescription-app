@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -29,8 +29,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import Link from "next/link";
 
 import { formatDate, isValidDate, todayFormatted } from "@/lib/utils";
+import * as store from "@/lib/storage";
+import type { PatientTypeData } from "@/types/patientTypeData";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -50,11 +53,11 @@ const formSchema = z.object({
   investigations: z.string().optional(),
   advice: z.string().optional(),
 });
-
 type FormValues = z.infer<typeof formSchema>;
+
 const CreatePrescription = () => {
   const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState<Date | undefined>(new Date());
+  const [month, setMonth] = useState<Date | undefined>(undefined);
   const [inputValue, setInputValue] = useState<string>("");
 
   const form = useForm<FormValues>({
@@ -74,20 +77,61 @@ const CreatePrescription = () => {
       advice: "",
     },
   });
+  const submitLabel = useMemo(() => "Save Offline", []);
 
-  function onSubmit(values: FormValues) {
-    console.log(values);
+  function resetForm() {
+    form.reset({
+      name: "",
+      age: undefined,
+      sex: undefined,
+      date: new Date(),
+      cc: "",
+      rx: "",
+      pulse: "",
+      bp: "",
+      spq: "",
+      others: "",
+      investigations: "",
+      advice: "",
+    });
+    setInputValue("");
+    setMonth(undefined);
   }
 
+  function onSubmit(values: FormValues) {
+    const id = store.nextId();
+
+    const payload: PatientTypeData = {
+      id,
+      name: values.name,
+      age: values.age,
+      sex: values.sex,
+      date: values.date.toISOString(),
+      cc: values.cc,
+      rx: values.rx ?? "",
+      pulse: values.pulse ?? "",
+      bp: values.bp ?? "",
+      spq: values.spq ?? "",
+      others: values.others ?? "",
+      investigations: values.investigations ?? "",
+      advice: values.advice ?? "",
+    };
+
+    store.add(payload);
+    resetForm();
+  }
   return (
     <div className="flex flex-col pt-6 items-center h-full">
       <Card className="flex p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-6 w-full"
+          >
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
               <FormField
-                control={form.control}
                 name="name"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>Name</FormLabel>
@@ -103,8 +147,8 @@ const CreatePrescription = () => {
                 )}
               />
               <FormField
-                control={form.control}
                 name="age"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>Age</FormLabel>
@@ -115,18 +159,15 @@ const CreatePrescription = () => {
                         min={1}
                         onWheel={(e) => e.currentTarget.blur()}
                         onInput={(e) => {
-                          const value = e.currentTarget.value;
-                          if (Number(value) < 1) {
-                            e.currentTarget.value = "";
-                          }
+                          const v = e.currentTarget.value;
+                          if (Number(v) < 1) e.currentTarget.value = "";
                         }}
                         placeholder="Please Enter Age"
                         value={field.value ?? ""}
                         onChange={(e) => {
                           const raw = e.target.value;
-                          if (raw === "") {
-                            field.onChange(undefined);
-                          } else {
+                          if (raw === "") field.onChange(undefined);
+                          else {
                             const n = Number(raw);
                             field.onChange(n > 0 ? n : undefined);
                           }
@@ -138,8 +179,8 @@ const CreatePrescription = () => {
                 )}
               />
               <FormField
-                control={form.control}
                 name="sex"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>Sex</FormLabel>
@@ -160,10 +201,11 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
+
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
               <FormField
-                control={form.control}
                 name="pulse"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>Pulse</FormLabel>
@@ -179,8 +221,8 @@ const CreatePrescription = () => {
                 )}
               />
               <FormField
-                control={form.control}
                 name="bp"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>BP</FormLabel>
@@ -196,8 +238,8 @@ const CreatePrescription = () => {
                 )}
               />
               <FormField
-                control={form.control}
                 name="spq"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>SPQ</FormLabel>
@@ -213,10 +255,11 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
+
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
               <FormField
-                control={form.control}
                 name="others"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="col-span-2 shrink-0">
                     <FormLabel>Others</FormLabel>
@@ -232,14 +275,15 @@ const CreatePrescription = () => {
                 )}
               />
               <FormField
-                control={form.control}
                 name="date"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>Date</FormLabel>
                     <FormControl>
                       <div className="relative w-full">
                         <Input
+                          readOnly
                           className="w-full bg-background pr-7"
                           value={inputValue}
                           placeholder={todayFormatted()}
@@ -284,6 +328,7 @@ const CreatePrescription = () => {
                               month={month}
                               onMonthChange={setMonth}
                               onSelect={(date) => {
+                                if (!date) return;
                                 field.onChange(date);
                                 setInputValue(formatDate(date));
                                 setOpen(false);
@@ -298,10 +343,11 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
+
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
               <FormField
-                control={form.control}
                 name="cc"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="col-span-3">
                     <FormLabel>C/C</FormLabel>
@@ -317,10 +363,11 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
+
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
               <FormField
-                control={form.control}
                 name="rx"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="col-span-3">
                     <FormLabel>R/X</FormLabel>
@@ -336,10 +383,11 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
+
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
               <FormField
-                control={form.control}
                 name="investigations"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="col-span-3">
                     <FormLabel>Investigations</FormLabel>
@@ -355,10 +403,11 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
+
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
               <FormField
-                control={form.control}
                 name="advice"
+                control={form.control}
                 render={({ field }) => (
                   <FormItem className="col-span-3">
                     <FormLabel>Advice</FormLabel>
@@ -374,9 +423,21 @@ const CreatePrescription = () => {
                 )}
               />
             </div>
-            <Button type="submit" variant={"blue"}>
-              Submit
-            </Button>
+
+            <div className="flex gap-3 justify-between">
+              <Button type="submit" variant={"blue"}>
+                {submitLabel}
+              </Button>
+              <Link href="/previous-prescriptoin">
+                <Button
+                  type="button"
+                  variant="default"
+                  className="cursor-pointer"
+                >
+                  View Saved
+                </Button>
+              </Link>
+            </div>
           </form>
         </Form>
       </Card>
