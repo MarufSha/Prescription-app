@@ -45,35 +45,44 @@ import * as store from "@/lib/storage";
 import type { PatientTypeData } from "@/types/patientTypeData";
 import { formatDate, todayFormatted } from "@/lib/utils";
 
-const formSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  age: z.number({ message: "Age must be a number." }).min(1, {
-    message: "Age must be at least 1 digit.",
-  }),
-  sex: z.enum(["male", "female", "other"], {
+type Sex = "male" | "female" | "other";
+
+const sexEnum = z.enum(["male", "female", "other"]);
+const formSchema = z
+  .object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    age: z.number({ message: "Age must be a number." }).min(1, {
+      message: "Age must be at least 1 digit.",
+    }),
+    sex: sexEnum.optional(),
+    date: z.date({ message: "Please select a date." }),
+    cc: z.string().min(1, { message: "Please describe the main issue." }),
+    rx: z.string().optional(),
+    pulse: z.string().optional(),
+    bp: z.string().optional(),
+    spq: z.string().optional(),
+    others: z.string().optional(),
+    investigations: z.string().optional(),
+    advice: z.string().optional(),
+  })
+  .refine((data) => !!data.sex, {
+    path: ["sex"],
     message: "Please select a gender.",
-  }),
-  date: z.date({ message: "Please select a date." }),
-  cc: z.string().min(1, { message: "Please describe the main issue." }),
-  rx: z.string().optional(),
-  pulse: z.string().optional(),
-  bp: z.string().optional(),
-  spq: z.string().optional(),
-  others: z.string().optional(),
-  investigations: z.string().optional(),
-  advice: z.string().optional(),
-});
+  });
+
 type FormValues = z.infer<typeof formSchema>;
 
 function PreviousPrescriptionPageInner() {
+  // Local data (lazy init from localStorage; no effects)
   const [items, setItems] = useState<PatientTypeData[]>(() => store.loadAll());
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  // Date UI state inside drawer
   const [dateInput, setDateInput] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState<Date | undefined>(
-    undefined
-  );
+  const [calendarMonth, setCalendarMonth] = useState<Date | undefined>(undefined);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -99,12 +108,13 @@ function PreviousPrescriptionPageInner() {
   function openEdit(id: number) {
     const row = store.getById(id);
     if (!row) return;
+
     setEditingId(id);
     const d = new Date(row.date);
     form.reset({
       name: row.name,
       age: Number(row.age),
-      sex: (row.sex as "male" | "female" | "other") ?? "other",
+      sex: (row.sex as Sex) ?? undefined,
       date: d,
       cc: row.cc,
       rx: row.rx || "",
@@ -144,10 +154,11 @@ function PreviousPrescriptionPageInner() {
 
   function submitEdit(values: FormValues) {
     if (!editingId) return;
+
     const patch: Partial<PatientTypeData> = {
       name: values.name,
       age: values.age,
-      sex: values.sex,
+      sex: (values.sex as Sex)!,
       date: values.date.toISOString(),
       cc: values.cc,
       rx: values.rx ?? "",
@@ -158,6 +169,7 @@ function PreviousPrescriptionPageInner() {
       investigations: values.investigations ?? "",
       advice: values.advice ?? "",
     };
+
     store.update(editingId, patch);
     setItems(store.loadAll());
     closeEdit();
@@ -199,9 +211,7 @@ function PreviousPrescriptionPageInner() {
 
       <Card className="w-full max-w-5xl p-4">
         {!hasItems ? (
-          <p className="text-sm text-muted-foreground">
-            No saved prescriptions yet.
-          </p>
+          <p className="text-sm text-muted-foreground">No saved prescriptions yet.</p>
         ) : (
           <div className="grid gap-2">
             {items.map((it) => (
@@ -214,8 +224,7 @@ function PreviousPrescriptionPageInner() {
                     #{it.id} · {it.name} · {it.age} · {it.sex.toUpperCase()}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Date: {formatDate(new Date(it.date))} · CC: {it.cc || "—"} ·
-                    RX: {it.rx || "—"}
+                    Date: {formatDate(new Date(it.date))} · CC: {it.cc || "—"} · RX: {it.rx || "—"}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -243,23 +252,17 @@ function PreviousPrescriptionPageInner() {
           </div>
         )}
       </Card>
-      <Sheet
-        open={drawerOpen}
-        onOpenChange={(o) => (o ? setDrawerOpen(true) : closeEdit())}
-      >
+
+      {/* Right-side drawer for editing */}
+      <Sheet open={drawerOpen} onOpenChange={(o) => (o ? setDrawerOpen(true) : closeEdit())}>
         <SheetContent side="right" className="w-full sm:max-w-2xl px-6">
           <SheetHeader>
-            <SheetTitle className="font-semibold pt-8 text-2xl">
-              Edit Prescription
-            </SheetTitle>
+            <SheetTitle className="font-semibold pt-8 text-2xl">Edit Prescription</SheetTitle>
           </SheetHeader>
 
           <div className="mt-6">
             <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(submitEdit)}
-                className="space-y-6 w-full"
-              >
+              <form onSubmit={form.handleSubmit(submitEdit)} className="space-y-6 w-full">
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
                   <FormField
                     name="name"
@@ -313,8 +316,8 @@ function PreviousPrescriptionPageInner() {
                       <FormItem>
                         <FormLabel>Sex</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
+                          value={field.value ?? ""} // controlled; "" shows placeholder
+                          onValueChange={(val) => field.onChange(val as FormValues["sex"])}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -341,10 +344,7 @@ function PreviousPrescriptionPageInner() {
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Others</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Enter Other Information"
-                            {...field}
-                          />
+                          <Input placeholder="Enter Other Information" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -365,10 +365,7 @@ function PreviousPrescriptionPageInner() {
                               placeholder={todayFormatted()}
                               onClick={() => setCalendarOpen(true)}
                             />
-                            <Popover
-                              open={calendarOpen}
-                              onOpenChange={setCalendarOpen}
-                            >
+                            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                               <PopoverTrigger asChild>
                                 <Button
                                   id="date-picker-edit"
@@ -422,6 +419,7 @@ function PreviousPrescriptionPageInner() {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   name="rx"
                   control={form.control}
@@ -435,6 +433,7 @@ function PreviousPrescriptionPageInner() {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   name="investigations"
                   control={form.control}
@@ -448,6 +447,7 @@ function PreviousPrescriptionPageInner() {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   name="advice"
                   control={form.control}
@@ -465,11 +465,7 @@ function PreviousPrescriptionPageInner() {
                 <SheetFooter className="pt-2">
                   <Button type="submit">Update</Button>
                   <SheetClose asChild>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={closeEdit}
-                    >
+                    <Button type="button" variant="secondary" onClick={closeEdit}>
                       Close
                     </Button>
                   </SheetClose>
@@ -483,6 +479,7 @@ function PreviousPrescriptionPageInner() {
   );
 }
 
+// Disable SSR for this page (safe localStorage usage; no hydration lint)
 export default dynamic(() => Promise.resolve(PreviousPrescriptionPageInner), {
   ssr: false,
 });

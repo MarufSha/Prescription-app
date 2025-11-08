@@ -31,28 +31,36 @@ import {
 } from "@/components/ui/popover";
 import Link from "next/link";
 
-import { formatDate, isValidDate, todayFormatted } from "@/lib/utils";
+import { formatDate, todayFormatted } from "@/lib/utils";
 import * as store from "@/lib/storage";
 import type { PatientTypeData } from "@/types/patientTypeData";
 
-const formSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  age: z.number({ message: "Age must be a number." }).min(1, {
-    message: "Age must be at least 1 digit.",
-  }),
-  sex: z.enum(["male", "female", "other"], {
+type Sex = "male" | "female" | "other";
+
+const sexEnum = z.enum(["male", "female", "other"]);
+const formSchema = z
+  .object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    age: z.number({ message: "Age must be a number." }).min(1, {
+      message: "Age must be at least 1 digit.",
+    }),
+    // optional in type (so we can reset), enforced required via refine
+    sex: sexEnum.optional(),
+    date: z.date({ message: "Please select a date." }),
+    cc: z.string().min(1, { message: "Please describe the main issue." }),
+    rx: z.string().optional(),
+    pulse: z.string().optional(),
+    bp: z.string().optional(),
+    spq: z.string().optional(),
+    others: z.string().optional(),
+    investigations: z.string().optional(),
+    advice: z.string().optional(),
+  })
+  .refine((data) => !!data.sex, {
+    path: ["sex"],
     message: "Please select a gender.",
-  }),
-  date: z.date({ message: "Please select a date." }),
-  cc: z.string().min(1, { message: "Please describe the main issue." }),
-  rx: z.string().optional(),
-  pulse: z.string().optional(),
-  bp: z.string().optional(),
-  spq: z.string().optional(),
-  others: z.string().optional(),
-  investigations: z.string().optional(),
-  advice: z.string().optional(),
-});
+  });
+
 type FormValues = z.infer<typeof formSchema>;
 
 const CreatePrescription = () => {
@@ -77,6 +85,7 @@ const CreatePrescription = () => {
       advice: "",
     },
   });
+
   const submitLabel = useMemo(() => "Save Offline", []);
 
   function resetForm() {
@@ -105,7 +114,7 @@ const CreatePrescription = () => {
       id,
       name: values.name,
       age: values.age,
-      sex: values.sex,
+      sex: (values.sex as Sex)!,
       date: values.date.toISOString(),
       cc: values.cc,
       rx: values.rx ?? "",
@@ -120,6 +129,7 @@ const CreatePrescription = () => {
     store.add(payload);
     resetForm();
   }
+
   return (
     <div className="flex flex-col pt-6 items-center h-full">
       <Card className="flex p-6">
@@ -184,7 +194,12 @@ const CreatePrescription = () => {
                 render={({ field }) => (
                   <FormItem className="shrink-0">
                     <FormLabel>Sex</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      value={field.value ?? ""} // keep controlled; "" shows placeholder
+                      onValueChange={(val) =>
+                        field.onChange(val as FormValues["sex"])
+                      }
+                    >
                       <FormControl>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Please Select a Gender" />
@@ -284,24 +299,10 @@ const CreatePrescription = () => {
                       <div className="relative w-full">
                         <Input
                           readOnly
-                          className="w-full bg-background pr-7"
-                          value={inputValue}
+                          className="w-full bg-background pr-7 cursor-pointer"
+                          value={inputValue || formatDate(field.value)}
                           placeholder={todayFormatted()}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            setInputValue(raw);
-                            const parsed = new Date(raw);
-                            if (isValidDate(parsed)) {
-                              field.onChange(parsed);
-                              setMonth(parsed);
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "ArrowDown") {
-                              e.preventDefault();
-                              setOpen(true);
-                            }
-                          }}
+                          onClick={() => setOpen(true)}
                         />
                         <Popover open={open} onOpenChange={setOpen}>
                           <PopoverTrigger asChild>
@@ -444,4 +445,5 @@ const CreatePrescription = () => {
     </div>
   );
 };
+
 export default CreatePrescription;
