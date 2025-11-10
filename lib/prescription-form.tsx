@@ -7,6 +7,9 @@ import {
   FieldValues,
   useFormContext,
   useWatch,
+  useFieldArray,
+  type FieldArrayPath,
+  type Path,
 } from "react-hook-form";
 import {
   FormField,
@@ -32,10 +35,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { formatDate, todayFormatted } from "@/lib/utils";
-import { useFieldArray } from "react-hook-form";
 import { X, Plus } from "lucide-react";
-
-type RepeatableKey = "cc" | "rx" | "investigations" | "advice";
 
 const optionalStringList = z.preprocess(
   (v) =>
@@ -53,60 +53,64 @@ const requiredStringList = z.preprocess(
   z.array(z.string().min(1)).min(1, "Add at least one C/C.")
 );
 
-export function ArrayTextList({
+export function ArrayTextList<TFieldValues extends FieldValues>({
   name,
   label,
   placeholder = "Type here...",
   className,
 }: {
-  name: RepeatableKey;
+  name: FieldArrayPath<TFieldValues>;
   label: string;
   placeholder?: string;
   className?: string;
 }) {
   const { control, register, formState, clearErrors } =
-    useFormContext<FormValues>();
-  const { fields, append, remove } = useFieldArray({
+    useFormContext<TFieldValues>();
+  const { fields, append, remove } = useFieldArray<
+    TFieldValues,
+    FieldArrayPath<TFieldValues>,
+    "id"
+  >({
     control,
     name,
   });
-
   useEffect(() => {
     if (fields.length === 0) {
-      append("");
+      append("" as unknown as never);
     }
   }, [fields.length, append]);
 
-  const listValues = useWatch({ control, name }) as string[] | undefined;
+  const listValues = useWatch({
+    control,
+    name: name as unknown as Path<TFieldValues>,
+  }) as unknown as string[] | undefined;
+
   useEffect(() => {
     const arr = Array.isArray(listValues) ? listValues : [];
     const hasNonEmpty = arr.some(
       (s) => typeof s === "string" && s.trim() !== ""
     );
-
-    if (hasNonEmpty && (formState.errors as Record<string, unknown>)[name]) {
-      clearErrors(name);
+    if (hasNonEmpty) {
+      clearErrors(name as unknown as Path<TFieldValues>);
     }
-  }, [listValues, name, clearErrors, formState.errors]);
+  }, [listValues, name, clearErrors]);
 
   type ArrayErrShape = {
     message?: string;
     root?: { message?: string };
     _errors?: string[];
   };
-  const rawErr = (formState.errors as Record<string, unknown>)[name] as
+  const errorsRecord = formState.errors as Record<string, unknown>;
+  const rawErr = errorsRecord[name as unknown as string] as
     | ArrayErrShape
     | undefined;
   const arrayErrorMessage =
-    rawErr?.message ??
-    rawErr?.root?.message ??
-    (rawErr?._errors && rawErr._errors[0]) ??
-    undefined;
+    rawErr?.message ?? rawErr?.root?.message ?? rawErr?._errors?.[0];
 
   return (
     <FormField
       control={control}
-      name={name}
+      name={name as unknown as Path<TFieldValues>}
       render={() => (
         <FormItem className={className}>
           <FormLabel className="flex items-center justify-between">
@@ -115,7 +119,7 @@ export function ArrayTextList({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => append("")}
+              onClick={() => append("" as unknown as never)}
               className="cursor-pointer"
             >
               <Plus className="mr-1 h-4 w-4" />
@@ -128,7 +132,9 @@ export function ArrayTextList({
               <div key={f.id} className="flex items-center gap-2">
                 <Input
                   placeholder={placeholder}
-                  {...register(`${name}.${idx}` as const)}
+                  {...register(
+                    `${name}.${idx}` as unknown as Path<TFieldValues>
+                  )}
                 />
                 <Button
                   type="button"
@@ -143,6 +149,7 @@ export function ArrayTextList({
               </div>
             ))}
           </div>
+
           <FormMessage />
           {arrayErrorMessage && (
             <p className="text-[0.8rem] font-medium text-destructive">
@@ -276,8 +283,8 @@ export function SexField<TFieldValues extends FieldValues>({
         <FormItem className={className}>
           <FormLabel>{label}</FormLabel>
           <Select
-            value={field.value ?? ""}
-            onValueChange={(val) => field.onChange(val as FormValues["sex"])}
+            value={(field.value as string | undefined) ?? ""}
+            onValueChange={(val) => field.onChange(val as unknown)}
           >
             <FormControl>
               <SelectTrigger className="w-full min-w-48">
@@ -323,7 +330,7 @@ export function DateField<TFieldValues extends FieldValues>({
               <Input
                 readOnly
                 className="w-full bg-background pr-7 cursor-pointer"
-                value={inputValue || formatDate(field.value)}
+                value={inputValue || formatDate(field.value as unknown as Date)}
                 placeholder={todayFormatted()}
                 onClick={() => setOpen(true)}
               />
@@ -353,7 +360,7 @@ export function DateField<TFieldValues extends FieldValues>({
                     onMonthChange={setMonth}
                     onSelect={(date) => {
                       if (!date) return;
-                      field.onChange(date);
+                      field.onChange(date as unknown);
                       setInputValue(formatDate(date));
                       setOpen(false);
                     }}
