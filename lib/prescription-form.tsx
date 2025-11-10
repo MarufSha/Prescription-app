@@ -185,11 +185,8 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
             ))}
           </div>
 
-          <FormMessage />
           {arrayErrorMessage && (
-            <p className="text-[0.8rem] font-medium text-destructive">
-              {arrayErrorMessage}
-            </p>
+            <p className=" text-sm text-destructive">{arrayErrorMessage}</p>
           )}
         </FormItem>
       )}
@@ -252,7 +249,7 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
   label: string;
   className?: string;
 }) {
-  const { control, register } = useFormContext<TFieldValues>();
+  const { control } = useFormContext<TFieldValues>();
   const { fields, append, remove } = useFieldArray<
     TFieldValues,
     FieldArrayPath<TFieldValues>,
@@ -373,7 +370,12 @@ export const formSchema = z.object({
       message: "Age is required.",
     })
     .min(0, "Invalid age."),
-  sex: z.enum(["male", "female", "other"]),
+  sex: z
+    .enum(["male", "female", "other"])
+    .optional()
+    .refine((val) => !!val, {
+      message: "Please select a gender",
+    }),
   date: z.date(),
 
   cc: requiredStringList,

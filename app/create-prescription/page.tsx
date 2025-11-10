@@ -60,22 +60,22 @@ const CreatePrescription = () => {
 
   const submitLabel = useMemo(() => "Save Offline", []);
 
-  function resetForm() {
-    form.reset({
-      name: "",
-      age: undefined as unknown as number,
-      sex: undefined,
-      date: new Date(),
-      cc: [""],
-      rx: [""],
-      investigations: [""],
-      advice: [""],
-      pulse: "",
-      bp: "",
-      sp02: "",
-      others: "",
-    });
-  }
+function resetForm() {
+  form.reset({
+    name: "",
+    age: undefined as unknown as number,
+    sex: undefined,
+    date: new Date(),
+    cc: [""],
+    rx: [],
+    investigations: [""],
+    advice: [""],
+    pulse: "",
+    bp: "",
+    sp02: "",
+    others: "",
+  });
+}
 
   const onSubmit: SubmitHandler<FormInput> = (values) => {
     const parsed: FormValues = formSchema.parse(values);
