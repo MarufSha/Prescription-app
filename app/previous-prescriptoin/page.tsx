@@ -28,14 +28,10 @@ import {
   SexField,
   DateField,
   ArrayTextList,
+  ArrayRxList,
 } from "@/lib/prescription-form";
 
 function PreviousPrescriptionPageInner() {
-  function toArray(val: unknown): string[] {
-    if (Array.isArray(val)) return val as string[];
-    if (typeof val === "string") return val ? [val] : [];
-    return [];
-  }
   const [items, setItems] = useState<PatientTypeData[]>(() => store.loadAll());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -64,6 +60,18 @@ function PreviousPrescriptionPageInner() {
   function openEdit(id: number) {
     const row = store.getById(id);
     if (!row) return;
+    const normalizedRx = Array.isArray(row.rx)
+      ? (row.rx as unknown[]).map((r) =>
+          typeof r === "string"
+            ? {
+                drug: r,
+                durationDays: 1,
+                timesPerDay: 1,
+                timing: "anytime" as const,
+              }
+            : r
+        )
+      : [];
 
     setEditingId(id);
     form.reset({
@@ -71,10 +79,19 @@ function PreviousPrescriptionPageInner() {
       age: Number(row.age),
       sex: (row.sex as FormValues["sex"]) ?? undefined,
       date: new Date(row.date),
-      cc: toArray(row.cc),
-      rx: toArray(row.rx),
-      investigations: toArray(row.investigations),
-      advice: toArray(row.advice),
+
+      cc: Array.isArray(row.cc) ? row.cc : row.cc ? [row.cc] : [],
+      rx: normalizedRx,
+      investigations: Array.isArray(row.investigations)
+        ? row.investigations
+        : row.investigations
+        ? [row.investigations]
+        : [],
+      advice: Array.isArray(row.advice)
+        ? row.advice
+        : row.advice
+        ? [row.advice]
+        : [],
 
       pulse: row.pulse || "",
       bp: row.bp || "",
@@ -107,18 +124,15 @@ function PreviousPrescriptionPageInner() {
 
   function submitEdit(values: FormValues) {
     if (!editingId) return;
-
     const patch: Partial<PatientTypeData> = {
       name: values.name,
       age: values.age,
       sex: values.sex!,
       date: values.date.toISOString(),
-
       cc: values.cc,
       rx: values.rx,
       investigations: values.investigations,
       advice: values.advice,
-
       pulse: values.pulse ?? "",
       bp: values.bp ?? "",
       sp02: values.sp02 ?? "",
@@ -177,7 +191,7 @@ function PreviousPrescriptionPageInner() {
               >
                 <div className="min-w-0">
                   <div className="font-medium">
-                    #{it.id} · {it.name} · {it.age} · {it.sex.toUpperCase()}
+                    #{it.id} · {it.name} · {it.age} · {it.sex}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Date: {formatDate(new Date(it.date))} · CC:{" "}
@@ -258,11 +272,7 @@ function PreviousPrescriptionPageInner() {
                   label="C/C"
                   placeholder="Enter a complaint..."
                 />
-                <ArrayTextList
-                  name="rx"
-                  label="R/X"
-                  placeholder="Enter a prescription item..."
-                />
+                <ArrayRxList name="rx" label="R/X" />
                 <ArrayTextList
                   name="investigations"
                   label="Investigations"
@@ -277,11 +287,20 @@ function PreviousPrescriptionPageInner() {
             </FormProvider>
           </div>
           <SheetFooter className="sticky bottom-0 border-t bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60 px-6 py-4">
-            <Button type="submit" className="cursor-pointer" onClick={form.handleSubmit(submitEdit)}>
+            <Button
+              type="submit"
+              className="cursor-pointer"
+              onClick={form.handleSubmit(submitEdit)}
+            >
               Update
             </Button>
             <SheetClose asChild>
-              <Button type="button" variant="secondary" className="cursor-pointer" onClick={closeEdit}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="cursor-pointer"
+                onClick={closeEdit}
+              >
                 Close
               </Button>
             </SheetClose>

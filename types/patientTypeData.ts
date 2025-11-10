@@ -1,3 +1,11 @@
+export type RxTiming = "before" | "after" | "anytime";
+export type RxItem = {
+  drug?: string;
+  durationDays?: number;
+  timesPerDay?: number;
+  timing?: RxTiming;
+};
+
 export type PatientTypeData = {
   id: number;
   name: string;
@@ -5,7 +13,7 @@ export type PatientTypeData = {
   sex: "male" | "female" | "other";
   date: string;
   cc: string[];
-  rx: string[];
+  rx: RxItem[];
   investigations: string[];
   advice: string[];
   pulse?: string;

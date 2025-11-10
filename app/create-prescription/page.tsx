@@ -13,9 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import * as store from "@/lib/storage";
-import type { PatientTypeData } from "@/types/patientTypeData";
+import type { PatientTypeData, RxTiming } from "@/types/patientTypeData";
 
 import {
+  ArrayRxList,
   ArrayTextList,
   DateField,
   NumberField,
@@ -37,7 +38,14 @@ const CreatePrescription = () => {
       date: new Date(),
 
       cc: [""],
-      rx: [""],
+      rx: [
+        {
+          drug: "",
+          durationDays: undefined as unknown as number,
+          timesPerDay: undefined as unknown as number,
+          timing: undefined as unknown as RxTiming,
+        },
+      ],
       investigations: [""],
       advice: [""],
       pulse: "",
@@ -156,12 +164,7 @@ const CreatePrescription = () => {
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <ArrayTextList
-                name="rx"
-                label="R/X"
-                placeholder="Enter a prescription item..."
-                className="col-span-3"
-              />
+              <ArrayRxList name="rx" label="R/X" className="col-span-3" />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">

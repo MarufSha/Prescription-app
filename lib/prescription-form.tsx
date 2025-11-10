@@ -52,7 +52,42 @@ const requiredStringList = z.preprocess(
       : [],
   z.array(z.string().min(1)).min(1, "Add at least one C/C.")
 );
+const emptyToUndefined = (v: unknown) =>
+  v === "" || v === null ? undefined : v;
 
+export const rxTimingEnum = z.enum(["before", "after", "anytime"]);
+export type RxTiming = z.infer<typeof rxTimingEnum>;
+
+export const rxItemSchema = z.object({
+  drug: z.string().optional(),
+
+  durationDays: z
+    .preprocess(emptyToUndefined, z.number().int().optional())
+    .refine((v) => v === undefined || v >= 1, {
+      message: "Must be ≥ 1",
+    }),
+
+  timesPerDay: z
+    .preprocess(emptyToUndefined, z.number().int().optional())
+    .refine((v) => v === undefined || v >= 1, {
+      message: "Must be ≥ 1",
+    }),
+
+  timing: rxTimingEnum.optional(),
+});
+
+export type RxItem = z.infer<typeof rxItemSchema>;
+export const rx = z.preprocess((v) => {
+  if (Array.isArray(v) && v.every((x) => typeof x === "string")) {
+    return (v as string[]).filter(Boolean).map((drug) => ({
+      drug,
+      durationDays: undefined,
+      timesPerDay: undefined,
+      timing: undefined,
+    }));
+  }
+  return v;
+}, z.array(rxItemSchema).optional().default([]));
 export function ArrayTextList<TFieldValues extends FieldValues>({
   name,
   label,
@@ -164,7 +199,173 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
 
 export type Sex = "male" | "female" | "other";
 export const sexEnum = z.enum(["male", "female", "other"]);
+export function SelectField<TFieldValues extends FieldValues>({
+  name,
+  label,
+  placeholder,
+  options,
+  className,
+}: {
+  name: FieldPath<TFieldValues>;
+  label: string;
+  placeholder?: string;
+  options: { value: string; label: string }[];
+  className?: string;
+}) {
+  const { control } = useFormContext<TFieldValues>();
+  return (
+    <FormField
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <FormItem className={className}>
+          <FormLabel>{label}</FormLabel>
+          <Select
+            value={(field.value as string | undefined) ?? ""}
+            onValueChange={(val) => field.onChange(val as unknown)}
+          >
+            <FormControl>
+              <SelectTrigger className="w-full relative z-10">
+                <SelectValue placeholder={placeholder ?? "Select..."} />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {options.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+export function ArrayRxList<TFieldValues extends FieldValues>({
+  name,
+  label,
+  className,
+}: {
+  name: FieldArrayPath<TFieldValues>;
+  label: string;
+  className?: string;
+}) {
+  const { control, register } = useFormContext<TFieldValues>();
+  const { fields, append, remove } = useFieldArray<
+    TFieldValues,
+    FieldArrayPath<TFieldValues>,
+    "id"
+  >({ control, name });
 
+  useEffect(() => {
+    if (fields.length === 0) {
+      append({
+        drug: "",
+        durationDays: undefined,
+        timesPerDay: undefined,
+        timing: undefined,
+      } as unknown as never);
+    }
+  }, [fields.length, append]);
+
+  return (
+    <FormField
+      control={control}
+      name={name as unknown as Path<TFieldValues>}
+      render={() => (
+        <FormItem className={className}>
+          <FormLabel className="flex items-center justify-between">
+            <span>{label}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                append({
+                  drug: "",
+                  durationDays: undefined,
+                  timesPerDay: undefined,
+                  timing: undefined,
+                } as unknown as never)
+              }
+              className="cursor-pointer"
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Add
+            </Button>
+          </FormLabel>
+
+          <div className="space-y-3">
+            {fields.map((f, idx) => (
+              <div
+                key={f.id}
+                className="grid gap-4 grid-cols-1 sm:grid-cols-7 items-start"
+              >
+                <TextField<TFieldValues>
+                  name={
+                    `${name}.${idx}.drug` as unknown as FieldPath<TFieldValues>
+                  }
+                  label="Medicine"
+                  placeholder="Amoxicillin 500mg..."
+                  className="sm:col-span-3"
+                />
+
+                <NumberField<TFieldValues>
+                  name={
+                    `${name}.${idx}.durationDays` as unknown as FieldPath<TFieldValues>
+                  }
+                  label="Days"
+                  placeholder="e.g. 7"
+                  className="sm:col-span-1"
+                />
+
+                <NumberField<TFieldValues>
+                  name={
+                    `${name}.${idx}.timesPerDay` as unknown as FieldPath<TFieldValues>
+                  }
+                  label="Times/Day"
+                  placeholder="e.g. 2"
+                  className="sm:col-span-1"
+                />
+
+                <SelectField<TFieldValues>
+                  name={
+                    `${name}.${idx}.timing` as unknown as FieldPath<TFieldValues>
+                  }
+                  label="Timing"
+                  placeholder="When to take"
+                  options={[
+                    { value: "before", label: "Before eating" },
+                    { value: "after", label: "After eating" },
+                    { value: "anytime", label: "Anytime" },
+                  ]}
+                  className="sm:col-span-1"
+                />
+                <div className="sm:col-span-1 flex justify-end self-end relative z-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => remove(idx)}
+                    className="cursor-pointer"
+                    aria-label={`Remove RX ${idx + 1}`}
+                    title="Remove"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
 export const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   age: z
@@ -176,7 +377,7 @@ export const formSchema = z.object({
   date: z.date(),
 
   cc: requiredStringList,
-  rx: optionalStringList,
+  rx: rx,
   investigations: optionalStringList,
   advice: optionalStringList,
 
@@ -209,7 +410,11 @@ export function TextField<TFieldValues extends FieldValues>({
         <FormItem className={className}>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input placeholder={placeholder} {...field} />
+            <Input
+              placeholder={placeholder}
+              value={(field.value ?? "") as string}
+              onChange={(e) => field.onChange(e.target.value)}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -223,13 +428,11 @@ export function NumberField<TFieldValues extends FieldValues>({
   label,
   placeholder,
   className,
-  min = 1,
 }: {
   name: FieldPath<TFieldValues>;
   label: string;
   placeholder?: string;
   className?: string;
-  min?: number;
 }) {
   const { control } = useFormContext<TFieldValues>();
   return (
@@ -243,19 +446,17 @@ export function NumberField<TFieldValues extends FieldValues>({
             <Input
               type="number"
               inputMode="numeric"
-              min={min}
-              onWheel={(e) => e.currentTarget.blur()}
-              onInput={(e) => {
-                const v = e.currentTarget.value;
-                if (Number(v) < min) e.currentTarget.value = "";
-              }}
               placeholder={placeholder}
-              value={field.value ?? ""}
-              onChange={(e) =>
-                field.onChange(
-                  e.target.value === "" ? undefined : Number(e.target.value)
-                )
-              }
+              value={(field.value ?? "") as string | number}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  field.onChange("");
+                } else {
+                  const n = e.currentTarget.valueAsNumber;
+                  field.onChange(Number.isNaN(n) ? "" : n);
+                }
+              }}
             />
           </FormControl>
           <FormMessage />
