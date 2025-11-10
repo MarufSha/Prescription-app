@@ -1,11 +1,9 @@
 "use client";
-
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
-
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, ArrowLeft } from "lucide-react";
@@ -29,28 +27,34 @@ import {
   NumberField,
   SexField,
   DateField,
+  ArrayTextList,
 } from "@/lib/prescription-form";
 
 function PreviousPrescriptionPageInner() {
+  function toArray(val: unknown): string[] {
+    if (Array.isArray(val)) return val as string[];
+    if (typeof val === "string") return val ? [val] : [];
+    return [];
+  }
   const [items, setItems] = useState<PatientTypeData[]>(() => store.loadAll());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const form = useForm<FormValues>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       age: undefined,
       sex: undefined,
       date: new Date(),
-      cc: "",
-      rx: "",
+      cc: [],
+      rx: [],
       pulse: "",
       bp: "",
-      spq: "",
+      sp02: "",
       others: "",
-      investigations: "",
-      advice: "",
+      investigations: [],
+      advice: [],
     },
   });
 
@@ -67,19 +71,19 @@ function PreviousPrescriptionPageInner() {
       age: Number(row.age),
       sex: (row.sex as FormValues["sex"]) ?? undefined,
       date: new Date(row.date),
-      cc: row.cc,
-      rx: row.rx || "",
+      cc: toArray(row.cc),
+      rx: toArray(row.rx),
+      investigations: toArray(row.investigations),
+      advice: toArray(row.advice),
+
       pulse: row.pulse || "",
       bp: row.bp || "",
-      spq: row.spq || "",
+      sp02: row.sp02 || "",
       others: row.others || "",
-      investigations: row.investigations || "",
-      advice: row.advice || "",
     });
 
     setDrawerOpen(true);
   }
-
   function closeEdit() {
     setDrawerOpen(false);
     setEditingId(null);
@@ -88,14 +92,16 @@ function PreviousPrescriptionPageInner() {
       age: undefined,
       sex: undefined,
       date: new Date(),
-      cc: "",
-      rx: "",
+
+      cc: [""],
+      rx: [],
+      investigations: [],
+      advice: [],
+
       pulse: "",
       bp: "",
-      spq: "",
+      sp02: "",
       others: "",
-      investigations: "",
-      advice: "",
     });
   }
 
@@ -107,14 +113,16 @@ function PreviousPrescriptionPageInner() {
       age: values.age,
       sex: values.sex!,
       date: values.date.toISOString(),
+
       cc: values.cc,
-      rx: values.rx ?? "",
+      rx: values.rx,
+      investigations: values.investigations,
+      advice: values.advice,
+
       pulse: values.pulse ?? "",
       bp: values.bp ?? "",
-      spq: values.spq ?? "",
+      sp02: values.sp02 ?? "",
       others: values.others ?? "",
-      investigations: values.investigations ?? "",
-      advice: values.advice ?? "",
     };
 
     store.update(editingId, patch);
@@ -172,8 +180,9 @@ function PreviousPrescriptionPageInner() {
                     #{it.id} · {it.name} · {it.age} · {it.sex.toUpperCase()}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Date: {formatDate(new Date(it.date))} · CC: {it.cc || "—"} ·
-                    RX: {it.rx || "—"}
+                    Date: {formatDate(new Date(it.date))} · CC:{" "}
+                    {Array.isArray(it.cc) ? it.cc[0] ?? "—" : it.cc || "—"} · RX
+                    items: {Array.isArray(it.rx) ? it.rx.length : it.rx ? 1 : 0}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -206,20 +215,19 @@ function PreviousPrescriptionPageInner() {
       >
         <SheetContent
           side="right"
-          className="w-full sm:max-w-2xl px-6"
+          className="w-full sm:max-w-2xl px-0 flex h-full flex-col"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <SheetHeader>
+          <SheetHeader className="px-6">
             <SheetTitle className="font-semibold pt-8 text-2xl">
               Edit Prescription
             </SheetTitle>
           </SheetHeader>
-
-          <div className="mt-6">
+          <div className="mt-6 flex-1 overflow-y-auto px-6">
             <FormProvider {...form}>
               <form
                 onSubmit={form.handleSubmit(submitEdit)}
-                className="space-y-6 w-full"
+                className="space-y-6 w-full pb-24"
               >
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
                   <TextField<FormValues>
@@ -245,42 +253,39 @@ function PreviousPrescriptionPageInner() {
                   <DateField<FormValues> name="date" />
                 </div>
 
-                <TextField<FormValues>
+                <ArrayTextList
                   name="cc"
                   label="C/C"
-                  placeholder="Enter C/C"
+                  placeholder="Enter a complaint..."
                 />
-                <TextField<FormValues>
+                <ArrayTextList
                   name="rx"
                   label="R/X"
-                  placeholder="Enter R/X"
+                  placeholder="Enter a prescription item..."
                 />
-                <TextField<FormValues>
+                <ArrayTextList
                   name="investigations"
                   label="Investigations"
-                  placeholder="Enter Investigations"
+                  placeholder="Enter an investigation..."
                 />
-                <TextField<FormValues>
+                <ArrayTextList
                   name="advice"
                   label="Advice"
-                  placeholder="Enter Advice"
+                  placeholder="Enter advice..."
                 />
-
-                <SheetFooter className="pt-2">
-                  <Button type="submit">Update</Button>
-                  <SheetClose asChild>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={closeEdit}
-                    >
-                      Close
-                    </Button>
-                  </SheetClose>
-                </SheetFooter>
               </form>
             </FormProvider>
           </div>
+          <SheetFooter className="sticky bottom-0 border-t bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60 px-6 py-4">
+            <Button type="submit" className="cursor-pointer" onClick={form.handleSubmit(submitEdit)}>
+              Update
+            </Button>
+            <SheetClose asChild>
+              <Button type="button" variant="secondary" className="cursor-pointer" onClick={closeEdit}>
+                Close
+              </Button>
+            </SheetClose>
+          </SheetFooter>
         </SheetContent>
       </Sheet>
     </div>

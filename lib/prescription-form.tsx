@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
-import { FieldPath, FieldValues, useFormContext } from "react-hook-form";
+import {
+  FieldPath,
+  FieldValues,
+  useFormContext,
+  useWatch,
+} from "react-hook-form";
 import {
   FormField,
   FormItem,
@@ -27,44 +32,156 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { formatDate, todayFormatted } from "@/lib/utils";
+import { useFieldArray } from "react-hook-form";
+import { X, Plus } from "lucide-react";
 
-/* --------------------------------
-   Schema + types shared by pages
------------------------------------ */
+type RepeatableKey = "cc" | "rx" | "investigations" | "advice";
+
+const optionalStringList = z.preprocess(
+  (v) =>
+    Array.isArray(v)
+      ? v.filter((s) => typeof s === "string" && s.trim() !== "")
+      : [],
+  z.array(z.string().min(1)).default([])
+);
+
+const requiredStringList = z.preprocess(
+  (v) =>
+    Array.isArray(v)
+      ? v.filter((s) => typeof s === "string" && s.trim() !== "")
+      : [],
+  z.array(z.string().min(1)).min(1, "Add at least one C/C.")
+);
+
+export function ArrayTextList({
+  name,
+  label,
+  placeholder = "Type here...",
+  className,
+}: {
+  name: RepeatableKey;
+  label: string;
+  placeholder?: string;
+  className?: string;
+}) {
+  const { control, register, formState, clearErrors } =
+    useFormContext<FormValues>();
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name,
+  });
+
+  useEffect(() => {
+    if (fields.length === 0) {
+      append("");
+    }
+  }, [fields.length, append]);
+
+  const listValues = useWatch({ control, name }) as string[] | undefined;
+  useEffect(() => {
+    const arr = Array.isArray(listValues) ? listValues : [];
+    const hasNonEmpty = arr.some(
+      (s) => typeof s === "string" && s.trim() !== ""
+    );
+
+    if (hasNonEmpty && (formState.errors as Record<string, unknown>)[name]) {
+      clearErrors(name);
+    }
+  }, [listValues, name, clearErrors, formState.errors]);
+
+  type ArrayErrShape = {
+    message?: string;
+    root?: { message?: string };
+    _errors?: string[];
+  };
+  const rawErr = (formState.errors as Record<string, unknown>)[name] as
+    | ArrayErrShape
+    | undefined;
+  const arrayErrorMessage =
+    rawErr?.message ??
+    rawErr?.root?.message ??
+    (rawErr?._errors && rawErr._errors[0]) ??
+    undefined;
+
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={() => (
+        <FormItem className={className}>
+          <FormLabel className="flex items-center justify-between">
+            <span>{label}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => append("")}
+              className="cursor-pointer"
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              Add
+            </Button>
+          </FormLabel>
+
+          <div className="space-y-2">
+            {fields.map((f, idx) => (
+              <div key={f.id} className="flex items-center gap-2">
+                <Input
+                  placeholder={placeholder}
+                  {...register(`${name}.${idx}` as const)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => remove(idx)}
+                  className="cursor-pointer"
+                  aria-label={`Remove ${label} item ${idx + 1}`}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <FormMessage />
+          {arrayErrorMessage && (
+            <p className="text-[0.8rem] font-medium text-destructive">
+              {arrayErrorMessage}
+            </p>
+          )}
+        </FormItem>
+      )}
+    />
+  );
+}
 
 export type Sex = "male" | "female" | "other";
 export const sexEnum = z.enum(["male", "female", "other"]);
 
-export const formSchema = z
-  .object({
-    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-    age: z.number({ message: "Age must be a number." }).min(1, {
-      message: "Age must be at least 1 digit.",
-    }),
-    // optional in type so we can reset to undefined; enforced required via refine
-    sex: sexEnum.optional(),
-    date: z.date({ message: "Please select a date." }),
-    cc: z.string().min(1, { message: "Please describe the main issue." }),
-    rx: z.string().optional(),
-    pulse: z.string().optional(),
-    bp: z.string().optional(),
-    spq: z.string().optional(),
-    others: z.string().optional(),
-    investigations: z.string().optional(),
-    advice: z.string().optional(),
-  })
-  .refine((d) => !!d.sex, {
-    path: ["sex"],
-    message: "Please select a gender.",
-  });
+export const formSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  age: z
+    .number({
+      message: "Age is required.",
+    })
+    .min(0, "Invalid age."),
+  sex: z.enum(["male", "female", "other"]),
+  date: z.date(),
 
-export type FormValues = z.infer<typeof formSchema>;
+  cc: requiredStringList,
+  rx: optionalStringList,
+  investigations: optionalStringList,
+  advice: optionalStringList,
 
-/* --------------------------------
-   Reusable Field Components
------------------------------------ */
+  pulse: z.string().optional(),
+  bp: z.string().optional(),
+  sp02: z.string().optional(),
+  others: z.string().optional(),
+});
 
-// Simple text input field
+export type FormValues = z.output<typeof formSchema>;
+export type FormInput = z.input<typeof formSchema>;
+
 export function TextField<TFieldValues extends FieldValues>({
   name,
   label,
@@ -94,7 +211,6 @@ export function TextField<TFieldValues extends FieldValues>({
   );
 }
 
-// Number input with min=1 and “no wheel” glitch guard
 export function NumberField<TFieldValues extends FieldValues>({
   name,
   label,
@@ -128,14 +244,11 @@ export function NumberField<TFieldValues extends FieldValues>({
               }}
               placeholder={placeholder}
               value={field.value ?? ""}
-              onChange={(e) => {
-                const raw = e.target.value;
-                if (raw === "") field.onChange(undefined);
-                else {
-                  const n = Number(raw);
-                  field.onChange(n >= min ? n : undefined);
-                }
-              }}
+              onChange={(e) =>
+                field.onChange(
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
             />
           </FormControl>
           <FormMessage />
@@ -145,7 +258,6 @@ export function NumberField<TFieldValues extends FieldValues>({
   );
 }
 
-// Sex Select that actually resets cleanly
 export function SexField<TFieldValues extends FieldValues>({
   name,
   label = "Sex",
@@ -185,7 +297,6 @@ export function SexField<TFieldValues extends FieldValues>({
   );
 }
 
-// Read-only date input with Calendar popover (self-contained state)
 export function DateField<TFieldValues extends FieldValues>({
   name,
   label = "Date",
@@ -236,7 +347,7 @@ export function DateField<TFieldValues extends FieldValues>({
                 >
                   <Calendar
                     mode="single"
-                    selected={field.value as unknown as Date}
+                    selected={(field.value as unknown as Date) ?? undefined}
                     captionLayout="dropdown"
                     month={month}
                     onMonthChange={setMonth}

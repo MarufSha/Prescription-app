@@ -1,41 +1,53 @@
 "use client";
 
-import { useMemo } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
 import Link from "next/link";
+import { useMemo } from "react";
+import {
+  FormProvider,
+  useForm,
+  type SubmitHandler,
+  type UseFormReturn,
+} from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { PatientTypeData } from "@/types/patientTypeData";
 import * as store from "@/lib/storage";
+import type { PatientTypeData } from "@/types/patientTypeData";
 
 import {
-  formSchema,
-  FormValues,
-  TextField,
+  ArrayTextList,
+  DateField,
   NumberField,
   SexField,
-  DateField,
+  TextField,
+  formSchema,
+  type FormInput,
+  type FormValues,
 } from "@/lib/prescription-form";
 
 const CreatePrescription = () => {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<FormInput>({
+    resolver: zodResolver<FormInput, undefined, FormValues>(formSchema),
+
     defaultValues: {
       name: "",
-      age: undefined,
+      age: undefined as unknown as number,
       sex: undefined,
       date: new Date(),
-      cc: "",
-      rx: "",
+
+      cc: [""],
+      rx: [""],
+      investigations: [""],
+      advice: [""],
       pulse: "",
       bp: "",
-      spq: "",
+      sp02: "",
       others: "",
-      investigations: "",
-      advice: "",
     },
+
+    mode: "onSubmit",
+    reValidateMode: "onChange",
   });
 
   const submitLabel = useMemo(() => "Save Offline", []);
@@ -43,125 +55,129 @@ const CreatePrescription = () => {
   function resetForm() {
     form.reset({
       name: "",
-      age: undefined,
+      age: undefined as unknown as number,
       sex: undefined,
       date: new Date(),
-      cc: "",
-      rx: "",
+      cc: [""],
+      rx: [""],
+      investigations: [""],
+      advice: [""],
       pulse: "",
       bp: "",
-      spq: "",
+      sp02: "",
       others: "",
-      investigations: "",
-      advice: "",
     });
   }
 
-  function onSubmit(values: FormValues) {
+  const onSubmit: SubmitHandler<FormInput> = (values) => {
+    const parsed: FormValues = formSchema.parse(values);
+
     const id = store.nextId();
 
     const payload: PatientTypeData = {
       id,
-      name: values.name,
-      age: values.age,
-      sex: values.sex!, // non-null after refine
-      date: values.date.toISOString(),
-      cc: values.cc,
-      rx: values.rx ?? "",
-      pulse: values.pulse ?? "",
-      bp: values.bp ?? "",
-      spq: values.spq ?? "",
-      others: values.others ?? "",
-      investigations: values.investigations ?? "",
-      advice: values.advice ?? "",
+      name: parsed.name,
+      age: parsed.age,
+      sex: parsed.sex!,
+      date: parsed.date.toISOString(),
+
+      cc: parsed.cc,
+      rx: parsed.rx,
+      investigations: parsed.investigations,
+      advice: parsed.advice,
+
+      pulse: parsed.pulse ?? "",
+      bp: parsed.bp ?? "",
+      sp02: parsed.sp02 ?? "",
+      others: parsed.others ?? "",
     };
 
     store.add(payload);
     resetForm();
-  }
+  };
 
   return (
     <div className="flex flex-col pt-6 items-center h-full">
       <Card className="flex p-6">
-        <FormProvider {...form}>
+        <FormProvider {...(form as unknown as UseFormReturn<FormValues>)}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-6 w-full"
           >
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <TextField<FormValues>
+              <TextField<FormInput>
                 name="name"
                 label="Name"
                 placeholder="Please Enter Name"
               />
-              <NumberField<FormValues>
+              <NumberField<FormInput>
                 name="age"
                 label="Age"
                 placeholder="Please Enter Age"
               />
-              <SexField<FormValues> name="sex" />
+              <SexField<FormInput> name="sex" label="Sex" />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <TextField<FormValues>
+              <TextField<FormInput>
                 name="pulse"
                 label="Pulse"
                 placeholder="Please Enter Pulse"
               />
-              <TextField<FormValues>
+              <TextField<FormInput>
                 name="bp"
                 label="BP"
                 placeholder="Please Enter BP"
               />
-              <TextField<FormValues>
-                name="spq"
-                label="SPQ"
-                placeholder="Please Enter SPQ"
+              <TextField<FormInput>
+                name="sp02"
+                label="Sp02"
+                placeholder="Please Enter sp02"
               />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <TextField<FormValues>
+              <TextField<FormInput>
                 name="others"
                 label="Others"
                 placeholder="Enter Other Information"
                 className="col-span-2"
               />
-              <DateField<FormValues> name="date" />
+              <DateField<FormInput> name="date" label="Date" />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <TextField<FormValues>
+              <ArrayTextList
                 name="cc"
                 label="C/C"
-                placeholder="Enter C/C"
+                placeholder="Enter a complaint..."
                 className="col-span-3"
               />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <TextField<FormValues>
+              <ArrayTextList
                 name="rx"
                 label="R/X"
-                placeholder="Enter R/X"
+                placeholder="Enter a prescription item..."
                 className="col-span-3"
               />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <TextField<FormValues>
+              <ArrayTextList
                 name="investigations"
                 label="Investigations"
-                placeholder="Enter Investigations"
+                placeholder="Enter an investigation..."
                 className="col-span-3"
               />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <TextField<FormValues>
+              <ArrayTextList
                 name="advice"
                 label="Advice"
-                placeholder="Enter Advice"
+                placeholder="Enter advice..."
                 className="col-span-3"
               />
             </div>

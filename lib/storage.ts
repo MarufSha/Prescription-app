@@ -20,7 +20,7 @@ export function saveAll(items: PatientTypeData[]) {
 
 export function add(item: PatientTypeData) {
   const items = loadAll();
-  items.unshift(item); // newest first
+  items.unshift(item);
   saveAll(items);
 }
 
@@ -41,24 +41,18 @@ export function getById(id: number) {
 
 export function clearAll() {
   saveAll([]);
-  // optional: reset the counter too
   try {
     localStorage.removeItem(ID_SEQ_KEY);
   } catch {}
 }
 
-/**
- * Returns a fresh unique ID.
- * Safe to call inside event handlers (e.g., onSubmit). Do NOT call during render.
- */
 export function nextId(): number {
   if (typeof window === "undefined") return 1;
 
-  // Read persisted sequence
+
   let current = parseInt(localStorage.getItem(ID_SEQ_KEY) ?? "0", 10);
   if (!Number.isFinite(current) || current < 0) current = 0;
 
-  // If the counter is missing or behind, seed from the current max id
   if (current === 0) {
     const items = loadAll();
     const maxExisting = items.reduce((m, it) => (it.id > m ? it.id : m), 0);
