@@ -132,7 +132,7 @@ const CreatePrescription = () => {
               <TextField<FormInput>
                 name="sp02"
                 label="Sp02"
-                placeholder="Please Enter sp02"
+                placeholder="Please Enter Sp02"
               />
             </div>
 
