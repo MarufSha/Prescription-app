@@ -91,7 +91,7 @@ export function TimesPerDayField<TFieldValues extends FieldValues>({
   label?: string;
   className?: string;
 }) {
-  const { control, formState } = useFormContext<TFieldValues>();
+  const { control, formState } = useFormContext<TFieldValues>(); // ⟵ add formState
 
   const handleFormat = (value: string) => {
     const digits = value.replace(/[^01]/g, "").slice(0, 3);
@@ -107,7 +107,6 @@ export function TimesPerDayField<TFieldValues extends FieldValues>({
       control={control}
       render={({ field }) => {
         const v = (field.value as string) ?? "";
-        const showError = formState.isSubmitted || v.length === 5; // ← key line
         return (
           <FormItem className={className}>
             <FormLabel>{label}</FormLabel>
@@ -120,8 +119,8 @@ export function TimesPerDayField<TFieldValues extends FieldValues>({
                 placeholder="e.g. 1+0+1"
               />
             </FormControl>
-            {showError && <FormMessage />}{" "}
-            {/* ← only shows when complete or submitted */}
+            {formState.isSubmitted && <FormMessage />}{" "}
+            {/* ⟵ only after submit */}
           </FormItem>
         );
       }}

@@ -16,7 +16,6 @@ import * as store from "@/lib/storage";
 import type {
   PatientTypeData,
   RxItem,
-  RxTiming,
 } from "@/types/patientTypeData";
 
 import {
@@ -36,7 +35,7 @@ const CreatePrescription = () => {
     resolver: zodResolver<FormInput, undefined, FormValues>(formSchema),
     defaultValues: {
       name: "",
-      age: undefined as unknown as number,
+      age: undefined as unknown as number, // (ok to leave as-is for now)
       sex: undefined,
       date: new Date(),
 
@@ -44,9 +43,9 @@ const CreatePrescription = () => {
       rx: [
         {
           drug: "",
-          durationDays: undefined as unknown as number,
-          timesPerDay: undefined as unknown as number,
-          timing: undefined as unknown as RxTiming,
+          durationDays: undefined,
+          timesPerDay: undefined, // ← was cast to number; remove that
+          timing: undefined,
         },
       ],
       investigations: [""],
@@ -56,9 +55,8 @@ const CreatePrescription = () => {
       sp02: "",
       others: "",
     },
-
     mode: "onSubmit",
-    reValidateMode: "onChange",
+    reValidateMode: "onSubmit",
   });
 
   const submitLabel = useMemo(() => "Save Offline", []);
