@@ -44,6 +44,7 @@ function PreviousPrescriptionPageInner() {
     resolver: zodResolver(formSchema),
     mode: "onSubmit",
     reValidateMode: "onSubmit",
+    shouldUnregister: true,
     defaultValues: {
       name: "",
       age: undefined,
@@ -67,35 +68,49 @@ function PreviousPrescriptionPageInner() {
     const row = store.getById(id);
     if (!row) return;
 
+    // ---- helpers ----
     const isTimesPerDay = (s: unknown): s is RxTimesPerDay =>
       typeof s === "string" && /^[01]\+[01]\+[01]$/.test(s);
 
+    const toNumberish = (v: unknown): number | undefined => {
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string") {
+        const n = Number(v.trim());
+        return Number.isFinite(n) ? n : undefined;
+      }
+      return undefined;
+    };
+
     const normalizedRx: RxItem[] = Array.isArray(row.rx)
       ? (row.rx as unknown[]).map((r) => {
-          const rec = r as Partial<RxItem> | Record<string, unknown>;
-          return {
-            drug: typeof rec.drug === "string" ? rec.drug : undefined,
-            durationDays:
-              typeof rec.durationDays === "number"
-                ? rec.durationDays
-                : Number(rec.durationDays) || undefined,
-            timesPerDay: isTimesPerDay(rec.timesPerDay)
-              ? rec.timesPerDay
-              : undefined,
-            timing:
-              rec.timing === "before" ||
-              rec.timing === "after" ||
-              rec.timing === "anytime"
-                ? rec.timing
-                : undefined,
-          } satisfies RxItem;
+          const obj = r as Record<string, unknown>;
+
+          const drug =
+            typeof obj.drug === "string" && obj.drug.trim() !== ""
+              ? obj.drug
+              : undefined;
+
+          const durationDays = toNumberish(obj.durationDays);
+
+          const timesPerDay = isTimesPerDay(obj.timesPerDay)
+            ? obj.timesPerDay
+            : undefined;
+
+          const timing =
+            obj.timing === "before" ||
+            obj.timing === "after" ||
+            obj.timing === "anytime"
+              ? obj.timing
+              : undefined;
+
+          return { drug, durationDays, timesPerDay, timing };
         })
       : [];
 
-    setEditingId(id);
-    form.reset({
-      name: row.name,
-      age: Number(row.age),
+    // Prepare values once
+    const values: FormValues = {
+      name: row.name ?? "",
+      age: Number(row.age) as number,
       sex: (row.sex as FormValues["sex"]) ?? undefined,
       date: new Date(row.date),
 
@@ -116,9 +131,15 @@ function PreviousPrescriptionPageInner() {
       bp: row.bp || "",
       sp02: row.sp02 || "",
       others: row.others || "",
-    });
+    };
 
+    // ---- open first, then reset on next tick (needed with shouldUnregister: true) ----
+    setEditingId(id);
     setDrawerOpen(true);
+
+    setTimeout(() => {
+      form.reset(values);
+    }, 0);
   }
   function closeEdit() {
     setDrawerOpen(false);
@@ -257,7 +278,7 @@ function PreviousPrescriptionPageInner() {
             </SheetTitle>
           </SheetHeader>
           <div className="mt-6 flex-1 overflow-y-auto px-6">
-            <FormProvider {...form}>
+            <FormProvider {...form} key={editingId ?? "new"}>
               <form
                 onSubmit={form.handleSubmit(submitEdit)}
                 className="space-y-6 w-full pb-24"

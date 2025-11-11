@@ -13,10 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import * as store from "@/lib/storage";
-import type {
-  PatientTypeData,
-  RxItem,
-} from "@/types/patientTypeData";
+import type { PatientTypeData, RxItem } from "@/types/patientTypeData";
 
 import {
   ArrayRxList,
@@ -57,6 +54,7 @@ const CreatePrescription = () => {
     },
     mode: "onSubmit",
     reValidateMode: "onSubmit",
+    shouldUnregister: true,
   });
 
   const submitLabel = useMemo(() => "Save Offline", []);
