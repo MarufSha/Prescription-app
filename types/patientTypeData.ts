@@ -1,8 +1,9 @@
 export type RxTiming = "before" | "after" | "anytime";
+export type RxTimesPerDay = `${0 | 1}+${0 | 1}+${0 | 1}`;
 export type RxItem = {
   drug?: string;
   durationDays?: number;
-  timesPerDay?: number;
+  timesPerDay?: RxTimesPerDay;
   timing?: RxTiming;
 };
 

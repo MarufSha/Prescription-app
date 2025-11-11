@@ -13,7 +13,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import * as store from "@/lib/storage";
-import type { PatientTypeData, RxTiming } from "@/types/patientTypeData";
+import type {
+  PatientTypeData,
+  RxItem,
+  RxTiming,
+} from "@/types/patientTypeData";
 
 import {
   ArrayRxList,
@@ -30,7 +34,6 @@ import {
 const CreatePrescription = () => {
   const form = useForm<FormInput>({
     resolver: zodResolver<FormInput, undefined, FormValues>(formSchema),
-
     defaultValues: {
       name: "",
       age: undefined as unknown as number,
@@ -60,22 +63,22 @@ const CreatePrescription = () => {
 
   const submitLabel = useMemo(() => "Save Offline", []);
 
-function resetForm() {
-  form.reset({
-    name: "",
-    age: undefined as unknown as number,
-    sex: undefined,
-    date: new Date(),
-    cc: [""],
-    rx: [],
-    investigations: [""],
-    advice: [""],
-    pulse: "",
-    bp: "",
-    sp02: "",
-    others: "",
-  });
-}
+  function resetForm() {
+    form.reset({
+      name: "",
+      age: undefined as unknown as number,
+      sex: undefined,
+      date: new Date(),
+      cc: [""],
+      rx: [],
+      investigations: [""],
+      advice: [""],
+      pulse: "",
+      bp: "",
+      sp02: "",
+      others: "",
+    });
+  }
 
   const onSubmit: SubmitHandler<FormInput> = (values) => {
     const parsed: FormValues = formSchema.parse(values);
@@ -90,7 +93,7 @@ function resetForm() {
       date: parsed.date.toISOString(),
 
       cc: parsed.cc,
-      rx: parsed.rx,
+      rx: (values.rx ?? []) as RxItem[],
       investigations: parsed.investigations,
       advice: parsed.advice,
 

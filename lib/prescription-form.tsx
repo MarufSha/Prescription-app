@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/popover";
 import { formatDate, todayFormatted } from "@/lib/utils";
 import { X, Plus } from "lucide-react";
+import { RxTimesPerDay } from "@/types/patientTypeData";
 
 const optionalStringList = z.preprocess(
   (v) =>
@@ -68,14 +69,65 @@ export const rxItemSchema = z.object({
     }),
 
   timesPerDay: z
-    .preprocess(emptyToUndefined, z.number().int().optional())
-    .refine((v) => v === undefined || v >= 1, {
-      message: "Must be ≥ 1",
-    }),
+    .union([
+      z
+        .string()
+        .regex(/^[01]\+[01]\+[01]$/, {
+          message: "Format: 1/0+1/0+1/0",
+        })
+        .transform((v) => v as RxTimesPerDay),
+      z.literal("").transform(() => undefined),
+    ])
+    .optional(),
 
   timing: rxTimingEnum.optional(),
 });
+export function TimesPerDayField<TFieldValues extends FieldValues>({
+  name,
+  label = "Times/Day",
+  className,
+}: {
+  name: FieldPath<TFieldValues>;
+  label?: string;
+  className?: string;
+}) {
+  const { control, formState } = useFormContext<TFieldValues>();
 
+  const handleFormat = (value: string) => {
+    const digits = value.replace(/[^01]/g, "").slice(0, 3);
+    return digits
+      .split("")
+      .map((d, i) => (i < 2 ? `${d}+` : d))
+      .join("");
+  };
+
+  return (
+    <FormField
+      name={name}
+      control={control}
+      render={({ field }) => {
+        const v = (field.value as string) ?? "";
+        const showError = formState.isSubmitted || v.length === 5; // ← key line
+        return (
+          <FormItem className={className}>
+            <FormLabel>{label}</FormLabel>
+            <FormControl>
+              <Input
+                type="text"
+                maxLength={5}
+                value={v}
+                onChange={(e) => field.onChange(handleFormat(e.target.value))}
+                placeholder="e.g. 1+0+1"
+              />
+            </FormControl>
+            {showError && <FormMessage />}{" "}
+            {/* ← only shows when complete or submitted */}
+          </FormItem>
+        );
+      }}
+    />
+  );
+}
 export type RxItem = z.infer<typeof rxItemSchema>;
 export const rx = z.preprocess((v) => {
   if (Array.isArray(v) && v.every((x) => typeof x === "string")) {
@@ -318,12 +370,11 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
                   className="sm:col-span-1"
                 />
 
-                <NumberField<TFieldValues>
+                <TimesPerDayField<TFieldValues>
                   name={
                     `${name}.${idx}.timesPerDay` as unknown as FieldPath<TFieldValues>
                   }
                   label="Times/Day"
-                  placeholder="e.g. 2"
                   className="sm:col-span-1"
                 />
 

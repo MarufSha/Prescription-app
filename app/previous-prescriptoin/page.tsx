@@ -17,7 +17,11 @@ import {
 } from "@/components/ui/sheet";
 
 import * as store from "@/lib/storage";
-import type { PatientTypeData } from "@/types/patientTypeData";
+import type {
+  PatientTypeData,
+  RxItem,
+  RxTimesPerDay,
+} from "@/types/patientTypeData";
 import { formatDate } from "@/lib/utils";
 
 import {
@@ -38,6 +42,8 @@ function PreviousPrescriptionPageInner() {
 
   const form = useForm({
     resolver: zodResolver(formSchema),
+    mode: "onSubmit",
+    reValidateMode: "onSubmit",
     defaultValues: {
       name: "",
       age: undefined,
@@ -60,17 +66,32 @@ function PreviousPrescriptionPageInner() {
   function openEdit(id: number) {
     const row = store.getById(id);
     if (!row) return;
-    const normalizedRx = Array.isArray(row.rx)
-      ? (row.rx as unknown[]).map((r) =>
-          typeof r === "string"
-            ? {
-                drug: r,
-                durationDays: 1,
-                timesPerDay: 1,
-                timing: "anytime" as const,
-              }
-            : r
-        )
+
+    const isTimesPerDay = (s: unknown): s is RxTimesPerDay =>
+      typeof s === "string" && /^[01]\+[01]\+[01]$/.test(s);
+
+    const normalizedRx: RxItem[] = Array.isArray(row.rx)
+      ? (row.rx as unknown[]).map((r) => {
+          // Treat each element as partial unknown input
+          const rec = r as Partial<RxItem> | Record<string, unknown>;
+
+          return {
+            drug: typeof rec.drug === "string" ? rec.drug : undefined,
+            durationDays:
+              typeof rec.durationDays === "number"
+                ? rec.durationDays
+                : Number(rec.durationDays) || undefined,
+            timesPerDay: isTimesPerDay(rec.timesPerDay)
+              ? rec.timesPerDay
+              : undefined,
+            timing:
+              rec.timing === "before" ||
+              rec.timing === "after" ||
+              rec.timing === "anytime"
+                ? rec.timing
+                : undefined,
+          } satisfies RxItem;
+        })
       : [];
 
     setEditingId(id);
