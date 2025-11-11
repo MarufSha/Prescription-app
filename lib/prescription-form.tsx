@@ -91,15 +91,18 @@ export function TimesPerDayField<TFieldValues extends FieldValues>({
   label?: string;
   className?: string;
 }) {
-  const { control, formState } = useFormContext<TFieldValues>(); // ⟵ add formState
+  const { control, formState } = useFormContext<TFieldValues>();
 
-  const handleFormat = (value: string) => {
-    const digits = value.replace(/[^01]/g, "").slice(0, 3);
-    return digits
+  const extractDigits = (val: string) => val.replace(/[^01]/g, "").slice(0, 3);
+
+  const format = (digits: string) =>
+    digits
+      .slice(0, 3)
       .split("")
       .map((d, i) => (i < 2 ? `${d}+` : d))
       .join("");
-  };
+
+  const handleFormat = (value: string) => format(extractDigits(value));
 
   return (
     <FormField
@@ -107,20 +110,50 @@ export function TimesPerDayField<TFieldValues extends FieldValues>({
       control={control}
       render={({ field }) => {
         const v = (field.value as string) ?? "";
+
         return (
           <FormItem className={className}>
             <FormLabel>{label}</FormLabel>
             <FormControl>
               <Input
                 type="text"
+                inputMode="numeric"
                 maxLength={5}
                 value={v}
-                onChange={(e) => field.onChange(handleFormat(e.target.value))}
-                placeholder="e.g. 1+0+1"
+                onChange={(e) => {
+                  field.onChange(handleFormat(e.target.value));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Backspace") return;
+
+                  const el = e.currentTarget;
+                  const len = el.value?.length ?? 0;
+                  const start = el.selectionStart ?? len;
+                  const end = el.selectionEnd ?? len;
+                  if (start === end && end === len) {
+                    e.preventDefault();
+                    const digits = extractDigits(v);
+                    const newDigits = digits.slice(0, -1);
+                    field.onChange(format(newDigits));
+                  }
+                }}
+                onPaste={async (e) => {
+                  e.preventDefault();
+                  const pasted = e.clipboardData?.getData("text") ?? "";
+                  if (!pasted && navigator.clipboard) {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      field.onChange(handleFormat(text));
+                      return;
+                    } catch {
+                    }
+                  }
+                  field.onChange(handleFormat(pasted));
+                }}
+                placeholder="D+N+E"
               />
             </FormControl>
-            {formState.isSubmitted && <FormMessage />}{" "}
-            {/* ⟵ only after submit */}
+            {formState.isSubmitted && <FormMessage />}
           </FormItem>
         );
       }}
@@ -308,7 +341,7 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
   >({ control, name });
 
   useEffect(() => {
-    if (fields.length === 0) {
+    if (fields.length === 0 && !control._formValues?.rx?.length) {
       append({
         drug: "",
         durationDays: undefined,
@@ -316,8 +349,8 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
         timing: undefined,
       } as unknown as never);
     }
-  }, [fields.length, append]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <FormField
       control={control}

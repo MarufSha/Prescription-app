@@ -72,9 +72,7 @@ function PreviousPrescriptionPageInner() {
 
     const normalizedRx: RxItem[] = Array.isArray(row.rx)
       ? (row.rx as unknown[]).map((r) => {
-          // Treat each element as partial unknown input
           const rec = r as Partial<RxItem> | Record<string, unknown>;
-
           return {
             drug: typeof rec.drug === "string" ? rec.drug : undefined,
             durationDays:

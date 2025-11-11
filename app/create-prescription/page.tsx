@@ -35,7 +35,7 @@ const CreatePrescription = () => {
     resolver: zodResolver<FormInput, undefined, FormValues>(formSchema),
     defaultValues: {
       name: "",
-      age: undefined as unknown as number, // (ok to leave as-is for now)
+      age: undefined as unknown as number,
       sex: undefined,
       date: new Date(),
 
@@ -44,7 +44,7 @@ const CreatePrescription = () => {
         {
           drug: "",
           durationDays: undefined,
-          timesPerDay: undefined, // ← was cast to number; remove that
+          timesPerDay: undefined,
           timing: undefined,
         },
       ],
