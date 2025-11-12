@@ -41,6 +41,7 @@ const CreatePrescription = () => {
       sex: undefined,
       date: new Date(),
       cc: [""],
+      dx: [],
       rx: [blankRx()],
       investigations: [],
       advice: [],
@@ -63,6 +64,7 @@ const CreatePrescription = () => {
       sex: undefined,
       date: new Date(),
       cc: [""],
+      dx: [],
       rx: [blankRx()],
       investigations: [],
       advice: [],
@@ -86,6 +88,7 @@ const CreatePrescription = () => {
       date: parsed.date.toISOString(),
 
       cc: parsed.cc,
+      dx: parsed.dx,
       rx: (values.rx ?? []) as RxItem[],
       investigations: parsed.investigations,
       advice: parsed.advice,
@@ -155,6 +158,14 @@ const CreatePrescription = () => {
                 name="cc"
                 label="C/C"
                 placeholder="Enter a complaint..."
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
+              <ArrayTextList<FormValues>
+                name="dx"
+                label="D/x"
+                placeholder="Enter a diagnosis..."
                 className="col-span-3"
               />
             </div>

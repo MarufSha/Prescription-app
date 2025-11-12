@@ -129,7 +129,7 @@ function PreviousPrescriptionPageInner() {
           : row.cc
           ? [row.cc]
           : [""],
-
+        dx: Array.isArray(row.dx) ? row.dx : row.dx ? [row.dx] : [],
         rx: normalizedRx,
         investigations: Array.isArray(row.investigations)
           ? row.investigations
@@ -164,6 +164,7 @@ function PreviousPrescriptionPageInner() {
       sex: undefined,
       date: new Date(),
       cc: [""],
+      dx: [],
       rx: [],
       investigations: [],
       advice: [],
@@ -217,6 +218,7 @@ function PreviousPrescriptionPageInner() {
         sex: values.sex!,
         date: values.date.toISOString(),
         cc: values.cc,
+        dx: values.dx,
         rx: rxFiltered,
         investigations: values.investigations,
         advice: values.advice,
@@ -367,6 +369,11 @@ function PreviousPrescriptionPageInner() {
                   name="cc"
                   label="C/C"
                   placeholder="Enter a complaint..."
+                />
+                <ArrayTextList<FormValues>
+                  name="dx"
+                  label="D/x"
+                  placeholder="Enter a diagnosis..."
                 />
                 <ArrayRxList<FormValues> name="rx" label="R/X" />
                 <ArrayTextList<FormValues>

@@ -478,6 +478,7 @@ export const formSchema = z.object({
   date: z.date(),
 
   cc: requiredStringList,
+  dx: optionalStringList,
   rx: rx,
   investigations: optionalStringList,
   advice: optionalStringList,

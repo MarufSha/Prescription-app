@@ -13,6 +13,7 @@ export type PatientTypeData = {
   age: number;
   sex: "male" | "female" | "other";
   date: string;
+  dx?: string[];
   cc: string[];
   rx: RxItem[];
   investigations: string[];
