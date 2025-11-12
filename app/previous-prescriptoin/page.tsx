@@ -33,13 +33,13 @@ import {
   DateField,
   ArrayTextList,
   ArrayRxList,
+  isRxEmpty,
 } from "@/lib/prescription-form";
 
 function PreviousPrescriptionPageInner() {
   const [items, setItems] = useState<PatientTypeData[]>(() => store.loadAll());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
 
   const originalRxRef = useRef<RxItem[]>([]);
   const resolver = zodResolver(formSchema) as unknown as Resolver<
@@ -71,7 +71,6 @@ function PreviousPrescriptionPageInner() {
 
   const hasItems = items.length > 0;
   const header = useMemo(() => "Previous Prescriptions", []);
-
 
   const isTimesPerDay = (s: unknown): s is RxTimesPerDay =>
     typeof s === "string" && /^[01]\+[01]\+[01]$/.test(s);
@@ -115,7 +114,6 @@ function PreviousPrescriptionPageInner() {
           })
         : [];
 
-
       originalRxRef.current = normalizedRx;
 
       const values: FormValues = {
@@ -150,7 +148,6 @@ function PreviousPrescriptionPageInner() {
         others: row.others || "",
       };
 
-
       setEditingId(id);
       setDrawerOpen(true);
       setTimeout(() => form.reset(values), 0);
@@ -178,7 +175,6 @@ function PreviousPrescriptionPageInner() {
     originalRxRef.current = [];
   }, [form]);
 
-
   const submitEdit = useCallback(
     (values: FormValues) => {
       if (!editingId) return;
@@ -189,7 +185,6 @@ function PreviousPrescriptionPageInner() {
 
       const rxClean: RxItem[] = rxFromForm.map((r, idx) => {
         const orig = originalRxRef.current[idx] ?? {};
-
         const drug =
           typeof r.drug === "string" && r.drug.trim() !== ""
             ? r.drug
@@ -215,14 +210,14 @@ function PreviousPrescriptionPageInner() {
           timing: timing ?? (orig as RxItem).timing,
         };
       });
-
+      const rxFiltered = rxClean.filter((r) => !isRxEmpty(r));
       const patch: Partial<PatientTypeData> = {
         name: values.name,
         age: values.age,
         sex: values.sex!,
         date: values.date.toISOString(),
         cc: values.cc,
-        rx: rxClean,
+        rx: rxFiltered,
         investigations: values.investigations,
         advice: values.advice,
         pulse: values.pulse ?? "",

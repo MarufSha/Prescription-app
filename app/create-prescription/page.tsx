@@ -26,17 +26,22 @@ import {
   type FormInput,
   type FormValues,
 } from "@/lib/prescription-form";
-
+const blankRx = (): RxItem => ({
+  drug: "",
+  durationDays: undefined,
+  timesPerDay: undefined,
+  timing: undefined,
+});
 const CreatePrescription = () => {
   const form = useForm<FormInput>({
     resolver: zodResolver<FormInput, undefined, FormValues>(formSchema),
     defaultValues: {
       name: "",
-      age: undefined,
+      age: undefined as unknown as number,
       sex: undefined,
       date: new Date(),
       cc: [""],
-      rx: [],
+      rx: [blankRx()],
       investigations: [],
       advice: [],
       pulse: "",
@@ -58,9 +63,9 @@ const CreatePrescription = () => {
       sex: undefined,
       date: new Date(),
       cc: [""],
-      rx: [],
-      investigations: [""],
-      advice: [""],
+      rx: [blankRx()],
+      investigations: [],
+      advice: [],
       pulse: "",
       bp: "",
       sp02: "",
@@ -155,7 +160,12 @@ const CreatePrescription = () => {
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
-              <ArrayRxList name="rx" label="R/X" className="col-span-3" />
+              <ArrayRxList<FormValues>
+                name="rx"
+                label="R/X"
+                className="col-span-3"
+                blockAddIfLastEmpty
+              />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">

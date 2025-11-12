@@ -58,6 +58,12 @@ const emptyToUndefined = (v: unknown) =>
 
 export const rxTimingEnum = z.enum(["before", "after", "anytime"]);
 export type RxTiming = z.infer<typeof rxTimingEnum>;
+export const isRxEmpty = (r: Partial<RxItem> | undefined) =>
+  !r ||
+  ((r.drug ?? "").trim() === "" &&
+    r.durationDays === undefined &&
+    r.timesPerDay === undefined &&
+    r.timing === undefined);
 
 export const rxItemSchema = z.object({
   drug: z.string().optional(),
@@ -326,17 +332,25 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
   name,
   label,
   className,
+  blockAddIfLastEmpty = false,
 }: {
   name: FieldArrayPath<TFieldValues>;
   label: string;
   className?: string;
+  blockAddIfLastEmpty?: boolean;
 }) {
-  const { control } = useFormContext<TFieldValues>();
+  const { control, getValues } = useFormContext<TFieldValues>();
   const { fields, append, remove } = useFieldArray<
     TFieldValues,
     FieldArrayPath<TFieldValues>,
     "id"
   >({ control, name });
+  const blankRx = (): RxItem => ({
+    drug: "",
+    durationDays: undefined,
+    timesPerDay: undefined,
+    timing: undefined,
+  });
 
   useEffect(() => {
     if (fields.length === 0 && !control._formValues?.rx?.length) {
@@ -361,14 +375,18 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() =>
-                append({
-                  drug: "",
-                  durationDays: undefined,
-                  timesPerDay: undefined,
-                  timing: undefined,
-                } as unknown as never)
-              }
+              onClick={() => {
+                if (blockAddIfLastEmpty) {
+                  const current = (getValues(
+                    name as unknown as Path<TFieldValues>
+                  ) ?? []) as unknown as RxItem[];
+                  const last = current[current.length - 1];
+                  if (isRxEmpty(last)) {
+                    return;
+                  }
+                }
+                append(blankRx() as unknown as never);
+              }}
               className="cursor-pointer"
             >
               <Plus className="mr-1 h-4 w-4" />
