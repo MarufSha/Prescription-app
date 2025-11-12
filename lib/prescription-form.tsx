@@ -145,8 +145,7 @@ export function TimesPerDayField<TFieldValues extends FieldValues>({
                       const text = await navigator.clipboard.readText();
                       field.onChange(handleFormat(text));
                       return;
-                    } catch {
-                    }
+                    } catch {}
                   }
                   field.onChange(handleFormat(pasted));
                 }}
@@ -178,20 +177,21 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
   placeholder = "Type here...",
   className,
 }: {
-  name: FieldArrayPath<TFieldValues>;
+  name: Path<TFieldValues>;
   label: string;
   placeholder?: string;
   className?: string;
 }) {
   const { control, register, formState, clearErrors } =
     useFormContext<TFieldValues>();
+
   const { fields, append, remove } = useFieldArray<
     TFieldValues,
     FieldArrayPath<TFieldValues>,
     "id"
   >({
     control,
-    name,
+    name: name as unknown as FieldArrayPath<TFieldValues>,
   });
   useEffect(() => {
     if (fields.length === 0) {
@@ -201,7 +201,7 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
 
   const listValues = useWatch({
     control,
-    name: name as unknown as Path<TFieldValues>,
+    name: name as Path<TFieldValues>,
   }) as unknown as string[] | undefined;
 
   useEffect(() => {
@@ -210,7 +210,7 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
       (s) => typeof s === "string" && s.trim() !== ""
     );
     if (hasNonEmpty) {
-      clearErrors(name as unknown as Path<TFieldValues>);
+      clearErrors(name as Path<TFieldValues>);
     }
   }, [listValues, name, clearErrors]);
 
@@ -229,7 +229,7 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
   return (
     <FormField
       control={control}
-      name={name as unknown as Path<TFieldValues>}
+      name={name as Path<TFieldValues>}
       render={() => (
         <FormItem className={className}>
           <FormLabel className="flex items-center justify-between">
@@ -251,9 +251,7 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
               <div key={f.id} className="flex items-center gap-2">
                 <Input
                   placeholder={placeholder}
-                  {...register(
-                    `${name}.${idx}` as unknown as Path<TFieldValues>
-                  )}
+                  {...register(`${name}.${idx}` as Path<TFieldValues>)}
                 />
                 <Button
                   type="button"
@@ -270,7 +268,7 @@ export function ArrayTextList<TFieldValues extends FieldValues>({
           </div>
 
           {arrayErrorMessage && (
-            <p className=" text-sm text-destructive">{arrayErrorMessage}</p>
+            <p className="text-sm text-destructive">{arrayErrorMessage}</p>
           )}
         </FormItem>
       )}

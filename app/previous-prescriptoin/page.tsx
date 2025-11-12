@@ -1,9 +1,9 @@
 "use client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, ArrowLeft } from "lucide-react";
@@ -40,14 +40,22 @@ function PreviousPrescriptionPageInner() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const form = useForm({
-    resolver: zodResolver(formSchema),
+
+  const originalRxRef = useRef<RxItem[]>([]);
+  const resolver = zodResolver(formSchema) as unknown as Resolver<
+    FormValues,
+    undefined,
+    FormValues
+  >;
+
+  const form = useForm<FormValues>({
+    resolver,
     mode: "onSubmit",
     reValidateMode: "onSubmit",
     shouldUnregister: true,
     defaultValues: {
       name: "",
-      age: undefined,
+      age: undefined as unknown as number,
       sex: undefined,
       date: new Date(),
       cc: [],
@@ -64,137 +72,193 @@ function PreviousPrescriptionPageInner() {
   const hasItems = items.length > 0;
   const header = useMemo(() => "Previous Prescriptions", []);
 
-  function openEdit(id: number) {
-    const row = store.getById(id);
-    if (!row) return;
 
-    // ---- helpers ----
-    const isTimesPerDay = (s: unknown): s is RxTimesPerDay =>
-      typeof s === "string" && /^[01]\+[01]\+[01]$/.test(s);
+  const isTimesPerDay = (s: unknown): s is RxTimesPerDay =>
+    typeof s === "string" && /^[01]\+[01]\+[01]$/.test(s);
 
-    const toNumberish = (v: unknown): number | undefined => {
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-      if (typeof v === "string") {
-        const n = Number(v.trim());
-        return Number.isFinite(n) ? n : undefined;
-      }
-      return undefined;
-    };
+  const toNumberish = (v: unknown): number | undefined => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string") {
+      const n = Number(v.trim());
+      return Number.isFinite(n) ? n : undefined;
+    }
+    return undefined;
+  };
 
-    const normalizedRx: RxItem[] = Array.isArray(row.rx)
-      ? (row.rx as unknown[]).map((r) => {
-          const obj = r as Record<string, unknown>;
+  const openEdit = useCallback(
+    (id: number) => {
+      const row = store.getById(id);
+      if (!row) return;
 
-          const drug =
-            typeof obj.drug === "string" && obj.drug.trim() !== ""
-              ? obj.drug
+      const normalizedRx: RxItem[] = Array.isArray(row.rx)
+        ? (row.rx as unknown[]).map((r) => {
+            const obj = r as Record<string, unknown>;
+
+            const drug =
+              typeof obj.drug === "string" && obj.drug.trim() !== ""
+                ? obj.drug
+                : undefined;
+
+            const durationDays = toNumberish(obj.durationDays);
+            const timesPerDay = isTimesPerDay(obj.timesPerDay)
+              ? obj.timesPerDay
               : undefined;
 
-          const durationDays = toNumberish(obj.durationDays);
+            const timing =
+              obj.timing === "before" ||
+              obj.timing === "after" ||
+              obj.timing === "anytime"
+                ? (obj.timing as RxItem["timing"])
+                : undefined;
 
-          const timesPerDay = isTimesPerDay(obj.timesPerDay)
-            ? obj.timesPerDay
-            : undefined;
+            return { drug, durationDays, timesPerDay, timing };
+          })
+        : [];
 
-          const timing =
-            obj.timing === "before" ||
-            obj.timing === "after" ||
-            obj.timing === "anytime"
-              ? obj.timing
-              : undefined;
 
-          return { drug, durationDays, timesPerDay, timing };
-        })
-      : [];
+      originalRxRef.current = normalizedRx;
 
-    // Prepare values once
-    const values: FormValues = {
-      name: row.name ?? "",
-      age: Number(row.age) as number,
-      sex: (row.sex as FormValues["sex"]) ?? undefined,
-      date: new Date(row.date),
+      const values: FormValues = {
+        name: row.name ?? "",
+        age: Number(row.age) as number,
+        sex: (row.sex as FormValues["sex"]) ?? undefined,
+        date: new Date(row.date),
 
-      cc: Array.isArray(row.cc) ? row.cc : row.cc ? [row.cc] : [],
-      rx: normalizedRx,
-      investigations: Array.isArray(row.investigations)
-        ? row.investigations
-        : row.investigations
-        ? [row.investigations]
-        : [],
-      advice: Array.isArray(row.advice)
-        ? row.advice
-        : row.advice
-        ? [row.advice]
-        : [],
+        cc: Array.isArray(row.cc)
+          ? row.cc.length
+            ? row.cc
+            : [""]
+          : row.cc
+          ? [row.cc]
+          : [""],
 
-      pulse: row.pulse || "",
-      bp: row.bp || "",
-      sp02: row.sp02 || "",
-      others: row.others || "",
-    };
+        rx: normalizedRx,
+        investigations: Array.isArray(row.investigations)
+          ? row.investigations
+          : row.investigations
+          ? [row.investigations]
+          : [],
+        advice: Array.isArray(row.advice)
+          ? row.advice
+          : row.advice
+          ? [row.advice]
+          : [],
 
-    // ---- open first, then reset on next tick (needed with shouldUnregister: true) ----
-    setEditingId(id);
-    setDrawerOpen(true);
+        pulse: row.pulse || "",
+        bp: row.bp || "",
+        sp02: row.sp02 || "",
+        others: row.others || "",
+      };
 
-    setTimeout(() => {
-      form.reset(values);
-    }, 0);
-  }
-  function closeEdit() {
+
+      setEditingId(id);
+      setDrawerOpen(true);
+      setTimeout(() => form.reset(values), 0);
+    },
+    [form]
+  );
+
+  const closeEdit = useCallback(() => {
     setDrawerOpen(false);
     setEditingId(null);
     form.reset({
       name: "",
-      age: undefined,
+      age: undefined as unknown as number,
       sex: undefined,
       date: new Date(),
-
       cc: [""],
       rx: [],
       investigations: [],
       advice: [],
-
       pulse: "",
       bp: "",
       sp02: "",
       others: "",
     });
-  }
+    originalRxRef.current = [];
+  }, [form]);
 
-  function submitEdit(values: FormValues) {
-    if (!editingId) return;
-    const patch: Partial<PatientTypeData> = {
-      name: values.name,
-      age: values.age,
-      sex: values.sex!,
-      date: values.date.toISOString(),
-      cc: values.cc,
-      rx: values.rx,
-      investigations: values.investigations,
-      advice: values.advice,
-      pulse: values.pulse ?? "",
-      bp: values.bp ?? "",
-      sp02: values.sp02 ?? "",
-      others: values.others ?? "",
-    };
 
-    store.update(editingId, patch);
-    setItems(store.loadAll());
-    closeEdit();
-  }
+  const submitEdit = useCallback(
+    (values: FormValues) => {
+      if (!editingId) return;
 
-  function handleDelete(id: number) {
-    store.remove(id);
-    setItems(store.loadAll());
-    if (editingId === id) closeEdit();
-  }
+      const rxFromForm = (form.getValues("rx") ?? []) as Array<
+        Record<string, unknown>
+      >;
 
-  function clearAll() {
+      const rxClean: RxItem[] = rxFromForm.map((r, idx) => {
+        const orig = originalRxRef.current[idx] ?? {};
+
+        const drug =
+          typeof r.drug === "string" && r.drug.trim() !== ""
+            ? r.drug
+            : undefined;
+
+        const durationDays = toNumberish(r.durationDays);
+
+        const timesPerDay = isTimesPerDay(r.timesPerDay)
+          ? r.timesPerDay
+          : undefined;
+
+        const timing =
+          r.timing === "before" ||
+          r.timing === "after" ||
+          r.timing === "anytime"
+            ? (r.timing as RxItem["timing"])
+            : undefined;
+
+        return {
+          drug: drug ?? (orig as RxItem).drug,
+          durationDays: durationDays ?? (orig as RxItem).durationDays,
+          timesPerDay: timesPerDay ?? (orig as RxItem).timesPerDay,
+          timing: timing ?? (orig as RxItem).timing,
+        };
+      });
+
+      const patch: Partial<PatientTypeData> = {
+        name: values.name,
+        age: values.age,
+        sex: values.sex!,
+        date: values.date.toISOString(),
+        cc: values.cc,
+        rx: rxClean,
+        investigations: values.investigations,
+        advice: values.advice,
+        pulse: values.pulse ?? "",
+        bp: values.bp ?? "",
+        sp02: values.sp02 ?? "",
+        others: values.others ?? "",
+      };
+
+      store.update(editingId, patch);
+      setItems(store.loadAll());
+      closeEdit();
+    },
+    [editingId, form, closeEdit]
+  );
+  const onFormSubmit = useCallback(
+    (e?: React.BaseSyntheticEvent) => {
+      e?.preventDefault();
+      return form.handleSubmit(submitEdit)(e);
+    },
+    [form, submitEdit]
+  );
+
+  const handleDelete = useCallback(
+    (id: number) => {
+      store.remove(id);
+      setItems(store.loadAll());
+      if (editingId === id) closeEdit();
+    },
+    [editingId, closeEdit]
+  );
+
+  const clearAll = useCallback(() => {
     store.clearAll();
     setItems([]);
     closeEdit();
-  }
+  }, [closeEdit]);
 
   return (
     <div className="flex flex-col gap-6 pt-6 items-center h-full">
@@ -279,10 +343,7 @@ function PreviousPrescriptionPageInner() {
           </SheetHeader>
           <div className="mt-6 flex-1 overflow-y-auto px-6">
             <FormProvider {...form} key={editingId ?? "new"}>
-              <form
-                onSubmit={form.handleSubmit(submitEdit)}
-                className="space-y-6 w-full pb-24"
-              >
+              <form onSubmit={onFormSubmit} className="space-y-6 w-full pb-24">
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
                   <TextField<FormValues>
                     name="name"
@@ -307,22 +368,23 @@ function PreviousPrescriptionPageInner() {
                   <DateField<FormValues> name="date" />
                 </div>
 
-                <ArrayTextList
+                <ArrayTextList<FormValues>
                   name="cc"
                   label="C/C"
                   placeholder="Enter a complaint..."
                 />
-                <ArrayRxList name="rx" label="R/X" />
-                <ArrayTextList
+                <ArrayRxList<FormValues> name="rx" label="R/X" />
+                <ArrayTextList<FormValues>
                   name="investigations"
                   label="Investigations"
                   placeholder="Enter an investigation..."
                 />
-                <ArrayTextList
+                <ArrayTextList<FormValues>
                   name="advice"
                   label="Advice"
                   placeholder="Enter advice..."
                 />
+                <button type="submit" className="hidden" />
               </form>
             </FormProvider>
           </div>
@@ -330,7 +392,7 @@ function PreviousPrescriptionPageInner() {
             <Button
               type="submit"
               className="cursor-pointer"
-              onClick={form.handleSubmit(submitEdit)}
+              onClick={onFormSubmit}
             >
               Update
             </Button>
