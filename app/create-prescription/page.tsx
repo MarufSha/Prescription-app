@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import {
   FormProvider,
+  Resolver,
   useForm,
   type SubmitHandler,
   type UseFormReturn,
@@ -26,6 +27,7 @@ import {
   type FormInput,
   type FormValues,
 } from "@/lib/prescription-form";
+import { downloadPrescriptionPdf } from "@/lib/pdf";
 const blankRx = (): RxItem => ({
   drug: "",
   durationDays: undefined,
@@ -33,8 +35,11 @@ const blankRx = (): RxItem => ({
   timing: undefined,
 });
 const CreatePrescription = () => {
-  const form = useForm<FormInput>({
-    resolver: zodResolver<FormInput, undefined, FormValues>(formSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema) as Resolver<FormValues, unknown, FormValues>,
+    mode: "onSubmit",
+    reValidateMode: "onSubmit",
+    shouldUnregister: true,
     defaultValues: {
       name: "",
       age: undefined as unknown as number,
@@ -50,11 +55,13 @@ const CreatePrescription = () => {
       sp02: "",
       others: "",
     },
-    mode: "onSubmit",
-    reValidateMode: "onSubmit",
-    shouldUnregister: true,
   });
-
+  const onDownloadPdf: SubmitHandler<FormValues> = (values) => {
+    downloadPrescriptionPdf({
+      filename: `Prescription_${values.name || "Patient"}.pdf`,
+      data: values,
+    });
+  };
   const submitLabel = useMemo(() => "Save Offline", []);
 
   function resetForm() {
@@ -210,6 +217,14 @@ const CreatePrescription = () => {
                   View Saved
                 </Button>
               </Link>
+              <Button
+                type="button"
+                variant="outline"
+                className="cursor-pointer"
+                onClick={form.handleSubmit(onDownloadPdf)}
+              >
+                Download PDF
+              </Button>
             </div>
           </form>
         </FormProvider>
