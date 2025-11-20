@@ -67,7 +67,6 @@ export const isRxEmpty = (r: Partial<RxItem> | undefined) =>
 
 export const rxItemSchema = z.object({
   drug: z.string().optional(),
-
   durationDays: z
     .preprocess(emptyToUndefined, z.number().int().optional())
     .refine((v) => v === undefined || v >= 1, {
