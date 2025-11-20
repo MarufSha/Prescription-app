@@ -1,6 +1,8 @@
 import { FormValues } from "./prescription-form";
+import type { TextOptionsLight } from "jspdf";
 
 type DownloadPdfInput = { filename?: string; data: FormValues };
+type JsPdfTextOptions = TextOptionsLight | undefined;
 
 export async function downloadPrescriptionPdf({
   filename = "Prescription.pdf",
@@ -25,14 +27,21 @@ export async function downloadPrescriptionPdf({
 
   const bold = () => doc.setFont("helvetica", "bold");
   const normal = () => doc.setFont("helvetica", "normal");
-  const text = (t: string, x: number, y: number, opts?: any) =>
-    doc.text(t, x, y, opts);
+  const text = (t: string, x: number, y: number, opts?: JsPdfTextOptions) => {
+    if (opts === undefined) {
+      return doc.text(t, x, y);
+    }
+    return doc.text(t, x, y, opts);
+  };
   const line = (x1: number, y1: number, x2: number, y2: number, w = 0.9) => {
     doc.setDrawColor(...COLOR_LINE);
     doc.setLineWidth(w);
     doc.line(x1, y1, x2, y2);
   };
-  const split = (t: string, w: number) => doc.splitTextToSize(t, w);
+
+  // 👇 Explicitly tell TS this returns string[]
+  const split = (t: string, w: number): string[] =>
+    doc.splitTextToSize(t, w) as string[];
 
   doc.setTextColor(...COLOR_TEXT);
   normal();
@@ -66,7 +75,6 @@ export async function downloadPrescriptionPdf({
   const rightColX = W - M - 360;
   const gap = 135;
 
-
   bold();
   text("Sex:", rightColX, y);
   normal();
@@ -80,13 +88,11 @@ export async function downloadPrescriptionPdf({
   normal();
   text("—", rightColX + 2 * gap + 56, y);
 
-
   y += LEAD + 10;
   bold();
   text("Name:", M, y);
   normal();
   text(data.name || "—", M + 60, y);
-
 
   y += LEAD + 10;
   bold();
@@ -106,7 +112,6 @@ export async function downloadPrescriptionPdf({
     y
   );
 
-
   y += LEAD + 10;
   line(M, y, W - M, y, 1.1);
   y += 16;
@@ -122,10 +127,12 @@ export async function downloadPrescriptionPdf({
 
   let yLeft = y;
   let yRight = y;
+
   const underlineTitle = (x: number, yTxt: number, label: string) => {
     const w = doc.getTextWidth(label);
     line(x, yTxt + 3, x + w, yTxt + 3, 0.6);
   };
+
   const leftTitle = (label: string) => {
     bold();
     doc.setFontSize(BODY);
@@ -192,7 +199,7 @@ export async function downloadPrescriptionPdf({
     if (!t) return "";
     const [m, e, n] = t.split("+");
     const chip = (f: string, lbl: string) => (f === "1" ? lbl : "");
-    return [chip(m, "M"), chip(e, "E"), chip(n, "N")]
+    return [chip(m, "Morning"), chip(e, "Evening"), chip(n, "Night")]
       .filter(Boolean)
       .join(" + ");
   };
@@ -229,7 +236,7 @@ export async function downloadPrescriptionPdf({
           ? "Before meal"
           : r.timing === "after"
           ? "After meal"
-          : "Anytime"
+          : "Before/After meal"
         : "",
     ]
       .filter(Boolean)
