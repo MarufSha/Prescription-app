@@ -1,160 +1,213 @@
-import { FormValues } from "./prescription-form";
-import type { TextOptionsLight } from "jspdf";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import type { FormValues } from "./prescription-form";
 
-type DownloadPdfInput = { filename?: string; data: FormValues };
-type JsPdfTextOptions = TextOptionsLight | undefined;
+type PdfBytes = Uint8Array;
 
-export async function downloadPrescriptionPdf({
-  filename = "Prescription.pdf",
-  data,
-}: DownloadPdfInput) {
-  const { default: jsPDF } = await import("jspdf");
-  await import("jspdf-autotable");
+export async function generatePrescriptionPdfBuffer(
+  data: FormValues
+): Promise<PdfBytes> {
+  const pdfDoc = await PDFDocument.create();
 
-  const M = 40;
+  const page = pdfDoc.addPage();
+  const { width: W, height: H } = page.getSize();
+
+  const margin = 40;
   const LEAD = 14;
   const SMALL = 10;
   const BODY = 11;
   const H1 = 14;
 
-  const COLOR_TEXT: [number, number, number] = [28, 28, 28];
-  const COLOR_SUB: [number, number, number] = [95, 95, 95];
-  const COLOR_LINE: [number, number, number] = [170, 170, 170];
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const doc = new jsPDF({ unit: "pt", format: "a4", compress: true });
-  const W = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
+  let y = H - margin;
 
-  const bold = () => doc.setFont("helvetica", "bold");
-  const normal = () => doc.setFont("helvetica", "normal");
-  const text = (t: string, x: number, y: number, opts?: JsPdfTextOptions) => {
-    if (opts === undefined) {
-      return doc.text(t, x, y);
+  const drawText = (
+    text: string,
+    x: number,
+    yPos: number,
+    opts?: {
+      size?: number;
+      bold?: boolean;
+      align?: "left" | "right";
+      color?: { r: number; g: number; b: number };
     }
-    return doc.text(t, x, y, opts);
+  ) => {
+    const size = opts?.size ?? BODY;
+    const useBold = opts?.bold ?? false;
+    const f = useBold ? fontBold : font;
+    const color = opts?.color ?? { r: 0.11, g: 0.11, b: 0.11 };
+
+    let xPos = x;
+
+    if (opts?.align === "right") {
+      const width = f.widthOfTextAtSize(text, size);
+      xPos = x - width;
+    }
+
+    page.drawText(text, {
+      x: xPos,
+      y: yPos,
+      size,
+      font: f,
+      color: rgb(color.r, color.g, color.b),
+    });
   };
-  const line = (x1: number, y1: number, x2: number, y2: number, w = 0.9) => {
-    doc.setDrawColor(...COLOR_LINE);
-    doc.setLineWidth(w);
-    doc.line(x1, y1, x2, y2);
+
+  const drawLine = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    w = 0.7,
+    color: { r: number; g: number; b: number } = {
+      r: 0.67,
+      g: 0.67,
+      b: 0.67,
+    }
+  ) => {
+    page.drawLine({
+      start: { x: x1, y: y1 },
+      end: { x: x2, y: y2 },
+      thickness: w,
+      color: rgb(color.r, color.g, color.b),
+    });
   };
 
-  // 👇 Explicitly tell TS this returns string[]
-  const split = (t: string, w: number): string[] =>
-    doc.splitTextToSize(t, w) as string[];
+  const splitText = (text: string, maxWidth: number, size: number) => {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let current = "";
 
-  doc.setTextColor(...COLOR_TEXT);
-  normal();
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      const width = font.widthOfTextAtSize(test, size);
 
-  let y = M;
+      if (width > maxWidth && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = test;
+      }
+    }
 
-  bold();
-  doc.setFontSize(H1);
-  text("Dr. John Doe, MBBS (CMC), FCPS (Medicine)", M, y);
-  normal();
-  doc.setFontSize(SMALL);
+    if (current) lines.push(current);
+    return lines;
+  };
 
-  let yL = y + LEAD + 2;
-  text("Consultant, Dept. of Medicine", M, yL);
-  yL += LEAD;
-  text("Doe Medical College Hospital", M, yL);
-  yL += LEAD;
-  text("Visiting Hours: 5:00 PM – 9:00 PM", M, yL);
+  drawText("Dr. John Doe, MBBS (CMC), FCPS (Medicine)", margin, y, {
+    size: H1,
+    bold: true,
+  });
 
-  let yR = y + LEAD + 2;
-  text("BMDC Reg. No.: A119962", W - M, yR, { align: "right" });
-  yR += LEAD;
-  text("Clinic: Medilife Chamber, Dhaka", W - M, yR, { align: "right" });
-  yR += LEAD;
-  text("Phone: 01700-000000", W - M, yR, { align: "right" });
+  y -= LEAD + 2;
 
-  y = Math.max(yL, yR) + 10;
-  line(M, y, W - M, y, 1.1);
-  y += 14;
-  doc.setFontSize(BODY);
-  const rightColX = W - M - 360;
-  const gap = 135;
+  drawText("Consultant, Dept. of Medicine", margin, y, { size: SMALL });
+  y -= LEAD;
+  drawText("Doe Medical College Hospital", margin, y, { size: SMALL });
+  y -= LEAD;
+  drawText("Visiting Hours: 5:00 PM – 9:00 PM", margin, y, { size: SMALL });
 
-  bold();
-  text("Sex:", rightColX, y);
-  normal();
-  text(`${data.sex ?? "—"}`, rightColX + 40, y);
-  bold();
-  text("Reg No:", rightColX + gap, y);
-  normal();
-  text("1428", rightColX + gap + 56, y);
-  bold();
-  text("Mobile:", rightColX + 2 * gap, y);
-  normal();
-  text("—", rightColX + 2 * gap + 56, y);
+  let rightY = H - margin - LEAD - 2;
+  drawText("BMDC Reg. No.: A119962", W - margin, rightY, {
+    size: SMALL,
+    align: "right",
+  });
+  rightY -= LEAD;
+  drawText("Clinic: Medilife Chamber, Dhaka", W - margin, rightY, {
+    size: SMALL,
+    align: "right",
+  });
+  rightY -= LEAD;
+  drawText("Phone: 01700-000000", W - margin, rightY, {
+    size: SMALL,
+    align: "right",
+  });
 
-  y += LEAD + 10;
-  bold();
-  text("Name:", M, y);
-  normal();
-  text(data.name || "—", M + 60, y);
+  const headerBottom = Math.min(y, rightY) - 10;
+  drawLine(margin, headerBottom, W - margin, headerBottom, 1);
 
-  y += LEAD + 10;
-  bold();
-  text("Age:", rightColX, y);
-  normal();
-  text(`${data.age ?? "—"}`, rightColX + 40, y);
-  bold();
-  text("Weight:", rightColX + gap, y);
-  normal();
-  text("—", rightColX + gap + 60, y);
-  bold();
-  text("Date:", rightColX + 2 * gap, y);
-  normal();
-  text(
+  const rightColX = W - margin - 360;
+  const gap = 110;
+
+  const row1Y = headerBottom - LEAD - 4;
+  const row2Y = row1Y - (LEAD + 10);
+
+  drawText("Name:", margin, row1Y, { bold: true });
+  drawText(data.name || "—", margin + 40, row1Y);
+
+  const col1X = rightColX;
+  const col2X = rightColX + gap;
+  const col3X = rightColX + 2 * gap;
+
+  drawText("Sex:", col1X, row1Y, { bold: true });
+  drawText(`${data.sex ?? "—"}`, col1X + 30, row1Y);
+
+  drawText("Reg No:", col2X, row1Y, { bold: true });
+  drawText("1428", col2X + 46, row1Y);
+
+  drawText("Mobile:", col3X, row1Y, { bold: true });
+  drawText("00000000000", col3X + 44, row1Y);
+
+  drawText("Age:", col1X, row2Y, { bold: true });
+  drawText(`${data.age ?? "—"}`, col1X + 30, row2Y);
+
+  drawText("Weight:", col2X, row2Y, { bold: true });
+  drawText("133", col2X + 46, row2Y);
+
+  drawText("Date:", col3X, row2Y, { bold: true });
+  drawText(
     data.date ? new Date(data.date).toLocaleDateString() : "—",
-    rightColX + 2 * gap + 44,
-    y
+    col3X + 44,
+    row2Y
   );
 
-  y += LEAD + 10;
-  line(M, y, W - M, y, 1.1);
-  y += 16;
+  y = row2Y - (LEAD + 2);
+  drawLine(margin, y, W - margin, y, 1);
+  y -= 36;
 
   const GUTTER = 24;
-  const splitX = M + Math.round((W - 2 * M) * 0.52); // ~52/48 split
-  const leftX = M;
-  const leftW = splitX - M - GUTTER / 2;
+  const splitX = margin + Math.round((W - 2 * margin) * 0.52);
+  const leftX = margin;
+  const leftW = splitX - margin - GUTTER / 2;
   const rightX = splitX + GUTTER / 2;
-  const rightW = W - M - rightX;
+  const rightW = W - margin - rightX;
 
-  line(splitX, y - 24, splitX, H - M, 0.9);
+  drawLine(splitX, y + 24, splitX, margin, 0.7);
 
   let yLeft = y;
   let yRight = y;
 
-  const underlineTitle = (x: number, yTxt: number, label: string) => {
-    const w = doc.getTextWidth(label);
-    line(x, yTxt + 3, x + w, yTxt + 3, 0.6);
+  const underlineTitle = (x: number, yTitle: number, label: string) => {
+    const size = BODY;
+    const width = fontBold.widthOfTextAtSize(label, size);
+    drawLine(x, yTitle - 2, x + width, yTitle - 2, 0.6);
   };
 
   const leftTitle = (label: string) => {
-    bold();
-    doc.setFontSize(BODY);
-    text(label, leftX, yLeft);
+    drawText(label, leftX, yLeft, { bold: true });
     underlineTitle(leftX, yLeft, label);
-    yLeft += LEAD + 4;
-    normal();
+    yLeft -= LEAD + 4;
   };
 
-  leftTitle("Visit No:");
-  text("1", leftX + 70, yLeft - (LEAD + 4));
+  const leftTextLine = (content: string, indent = 14) => {
+    drawText(content, leftX + indent, yLeft);
+    yLeft -= LEAD;
+  };
+
+  drawText("Visit No:", leftX, yLeft, { bold: true });
+
+  drawText("1", leftX + 70, yLeft);
+  yLeft -= LEAD + 4;
 
   leftTitle("C/C");
   const cc = (data.cc ?? []).filter(Boolean);
   const usable = leftW - 14;
-  cc.forEach((s) =>
-    split(`• ${s}`, usable).forEach((ln) => {
-      text(ln, leftX + 14, yLeft);
-      yLeft += LEAD;
-    })
-  );
-  yLeft += 6;
+  cc.forEach((s) => {
+    const lines = splitText(`• ${s}`, usable, BODY);
+    lines.forEach((ln) => leftTextLine(ln));
+  });
+  yLeft -= 6;
 
   leftTitle("O/E");
   const oe = [
@@ -162,41 +215,33 @@ export async function downloadPrescriptionPdf({
     `SPO2: ${data.sp02 || "—"}`,
     `Pulse: ${data.pulse || "—"}`,
   ];
-  oe.forEach((t) => {
-    text(t, leftX + 14, yLeft);
-    yLeft += LEAD;
-  });
-  yLeft += 6;
+  oe.forEach((t) => leftTextLine(t));
+  yLeft -= 6;
 
   leftTitle("Reports:");
   const inv = (data.investigations ?? []).filter(Boolean);
-  inv.forEach((s) =>
-    split(`• ${s}`, usable).forEach((ln) => {
-      text(ln, leftX + 14, yLeft);
-      yLeft += LEAD;
-    })
-  );
-  yLeft += 6;
+  inv.forEach((s) => {
+    const lines = splitText(`• ${s}`, usable, BODY);
+    lines.forEach((ln) => leftTextLine(ln));
+  });
+  yLeft -= 6;
 
   leftTitle("Plan:");
   const adv = (data.advice ?? []).filter(Boolean);
-  adv.forEach((s) =>
-    split(`• ${s}`, usable).forEach((ln) => {
-      text(ln, leftX + 14, yLeft);
-      yLeft += LEAD;
-    })
-  );
+  adv.forEach((s) => {
+    const lines = splitText(`• ${s}`, usable, BODY);
+    lines.forEach((ln) => leftTextLine(ln));
+  });
 
-  bold();
-  doc.setFontSize(H1);
-  text("Rx.", rightX, yRight);
+  drawText("Rx.", rightX, yRight, { bold: true, size: H1 });
   underlineTitle(rightX, yRight, "Rx.");
-  yRight += LEAD + 8;
-  normal();
-  doc.setFontSize(BODY);
+  yRight -= LEAD + 8;
 
   const prettyTimes = (t?: string) => {
     if (!t) return "";
+      if (t === "0+0+0") {
+    t = "1+1+1";
+  }
     const [m, e, n] = t.split("+");
     const chip = (f: string, lbl: string) => (f === "1" ? lbl : "");
     return [chip(m, "Morning"), chip(e, "Evening"), chip(n, "Night")]
@@ -204,59 +249,76 @@ export async function downloadPrescriptionPdf({
       .join(" + ");
   };
 
-  const rx = (data.rx ?? []).filter(
+  const rxList = (data.rx ?? []).filter(
     (r) =>
       (r.drug && r.drug.trim()) || r.durationDays || r.timesPerDay || r.timing
   );
 
-  rx.forEach((r, i) => {
-    bold();
-    text(`${i + 1}.`, rightX, yRight);
-    const drugLines = split((r.drug ?? "").toString(), rightW - 120);
-    text(drugLines[0] || "", rightX + 18, yRight);
-    normal();
+  rxList.forEach((r, i) => {
+    drawText(`${i + 1}.`, rightX, yRight, { bold: true });
 
-    const dur = r.durationDays
-      ? `- ${r.durationDays} day${r.durationDays > 1 ? "s" : ""}`
-      : "";
-    if (dur) text(dur, rightX + rightW, yRight, { align: "right" });
+    const drug = r.drug ?? "";
+    const drugLines = splitText(drug, rightW - 120, BODY);
+    const firstDrugLine = drugLines[0] ?? "";
+
+    drawText(firstDrugLine, rightX + 18, yRight);
+
+    const dur =
+      r.durationDays && r.durationDays > 0
+        ? `- ${r.durationDays} day${r.durationDays > 1 ? "s" : ""}`
+        : "";
+
+    if (dur) {
+      drawText(dur, rightX + rightW, yRight, {
+        align: "right",
+      });
+    }
 
     if (drugLines.length > 1) {
-      for (let k = 1; k < drugLines.length; k++) {
-        yRight += LEAD;
-        text(drugLines[k], rightX + 18, yRight);
+      for (let k = 1; k < drugLines.length; k += 1) {
+        yRight -= LEAD;
+        drawText(drugLines[k], rightX + 18, yRight);
       }
     }
-    yRight += LEAD;
 
-    const sub = [
-      r.timesPerDay ? prettyTimes(r.timesPerDay) : "",
-      r.timing
-        ? r.timing === "before"
+    yRight -= LEAD;
+
+    const subParts: string[] = [];
+
+    if (r.timesPerDay) {
+      subParts.push(prettyTimes(r.timesPerDay));
+    }
+
+    if (r.timing) {
+      const label =
+        r.timing === "before"
           ? "Before meal"
           : r.timing === "after"
           ? "After meal"
-          : "Before/After meal"
-        : "",
-    ]
-      .filter(Boolean)
-      .join("  ·  ");
+          : "Before/After meal";
+      subParts.push(label);
+    }
+
+    const sub = subParts.join("   ::   ");
 
     if (sub) {
-      doc.setTextColor(...COLOR_SUB);
-      text(sub, rightX + 18, yRight);
-      doc.setTextColor(...COLOR_TEXT);
-      yRight += LEAD;
+      drawText(sub, rightX + 18, yRight, {
+        size: SMALL,
+        color: { r: 0.37, g: 0.37, b: 0.37 },
+      });
+      yRight -= LEAD;
     }
-    yRight += 4;
+
+    yRight -= 4;
   });
 
-  // footer
-  line(M, H - M, W - M, H - M, 0.9);
-  doc.setFontSize(SMALL);
-  doc.setTextColor(...COLOR_SUB);
-  text("— Review after 2 weeks —", W - M, H - M - 10, { align: "right" });
-  doc.setTextColor(...COLOR_TEXT);
+  drawLine(margin, margin, W - margin, margin, 0.7);
+  drawText("— Review after 2 weeks —", W - margin, margin + 6, {
+    size: SMALL,
+    color: { r: 0.37, g: 0.37, b: 0.37 },
+    align: "right",
+  });
 
-  doc.save(filename);
+  const pdfBytes = await pdfDoc.save();
+  return pdfBytes;
 }

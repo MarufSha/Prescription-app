@@ -27,16 +27,47 @@ import {
   type FormInput,
   type FormValues,
 } from "@/lib/prescription-form";
-import { downloadPrescriptionPdf } from "@/lib/pdf";
+
 const blankRx = (): RxItem => ({
   drug: "",
   durationDays: undefined,
   timesPerDay: undefined,
   timing: undefined,
 });
+
+async function downloadPrescriptionFromServer(values: FormValues) {
+  const res = await fetch("/api/prescription-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    console.error("Failed to generate PDF:", res.status, msg);
+    return;
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Prescription_${values.name || "Patient"}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
 const CreatePrescription = () => {
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as Resolver<FormValues, unknown, FormValues>,
+    resolver: zodResolver(formSchema) as Resolver<
+      FormValues,
+      unknown,
+      FormValues
+    >,
     mode: "onSubmit",
     reValidateMode: "onSubmit",
     shouldUnregister: true,
@@ -56,11 +87,8 @@ const CreatePrescription = () => {
       others: "",
     },
   });
-  const onDownloadPdf: SubmitHandler<FormValues> = (values) => {
-    downloadPrescriptionPdf({
-      filename: `Prescription_${values.name || "Patient"}.pdf`,
-      data: values,
-    });
+  const onDownloadPdf: SubmitHandler<FormValues> = async (values) => {
+    await downloadPrescriptionFromServer(values);
   };
   const submitLabel = useMemo(() => "Save Offline", []);
 
