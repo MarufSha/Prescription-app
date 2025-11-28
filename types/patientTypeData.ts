@@ -23,3 +23,6 @@ export type PatientTypeData = {
   sp02?: string;
   others?: string;
 };
+export type RHFInternalOptions = {
+  shouldUnregister?: boolean;
+};

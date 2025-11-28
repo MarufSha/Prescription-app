@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { Card } from "@/components/ui/card";
@@ -41,7 +41,6 @@ function PreviousPrescriptionPageInner() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const originalRxRef = useRef<RxItem[]>([]);
   const resolver = zodResolver(formSchema) as unknown as Resolver<
     FormValues,
     undefined,
@@ -52,7 +51,7 @@ function PreviousPrescriptionPageInner() {
     resolver,
     mode: "onSubmit",
     reValidateMode: "onSubmit",
-    shouldUnregister: true,
+    shouldUnregister: false,
     defaultValues: {
       name: "",
       age: undefined as unknown as number,
@@ -114,8 +113,6 @@ function PreviousPrescriptionPageInner() {
           })
         : [];
 
-      originalRxRef.current = normalizedRx;
-
       const values: FormValues = {
         name: row.name ?? "",
         age: Number(row.age) as number,
@@ -173,45 +170,43 @@ function PreviousPrescriptionPageInner() {
       sp02: "",
       others: "",
     });
-    originalRxRef.current = [];
   }, [form]);
 
   const submitEdit = useCallback(
     (values: FormValues) => {
       if (!editingId) return;
 
-      const rxFromForm = (form.getValues("rx") ?? []) as Array<
-        Record<string, unknown>
-      >;
+      const rawRx = (values.rx ?? []) as RxItem[];
+      const rxClean: RxItem[] = rawRx
+        .map((r) => {
+          const drug =
+            typeof r.drug === "string" && r.drug.trim() !== ""
+              ? r.drug.trim()
+              : undefined;
 
-      const rxClean: RxItem[] = rxFromForm.map((r, idx) => {
-        const orig = originalRxRef.current[idx] ?? {};
-        const drug =
-          typeof r.drug === "string" && r.drug.trim() !== ""
-            ? r.drug
-            : undefined;
+          const durationDays =
+            typeof r.durationDays === "number" &&
+            Number.isFinite(r.durationDays)
+              ? r.durationDays
+              : undefined;
 
-        const durationDays = toNumberish(r.durationDays);
+          const timesPerDay = r.timesPerDay ?? undefined;
+          const timing =
+            r.timing === "before" ||
+            r.timing === "after" ||
+            r.timing === "anytime"
+              ? r.timing
+              : undefined;
+          return {
+            drug,
+            durationDays,
+            timesPerDay,
+            timing,
+          };
+        })
 
-        const timesPerDay = isTimesPerDay(r.timesPerDay)
-          ? r.timesPerDay
-          : undefined;
+        .filter((r) => !isRxEmpty(r));
 
-        const timing =
-          r.timing === "before" ||
-          r.timing === "after" ||
-          r.timing === "anytime"
-            ? (r.timing as RxItem["timing"])
-            : undefined;
-
-        return {
-          drug: drug ?? (orig as RxItem).drug,
-          durationDays: durationDays ?? (orig as RxItem).durationDays,
-          timesPerDay: timesPerDay ?? (orig as RxItem).timesPerDay,
-          timing: timing ?? (orig as RxItem).timing,
-        };
-      });
-      const rxFiltered = rxClean.filter((r) => !isRxEmpty(r));
       const patch: Partial<PatientTypeData> = {
         name: values.name,
         age: values.age,
@@ -219,7 +214,7 @@ function PreviousPrescriptionPageInner() {
         date: values.date.toISOString(),
         cc: values.cc,
         dx: values.dx,
-        rx: rxFiltered,
+        rx: rxClean,
         investigations: values.investigations,
         advice: values.advice,
         pulse: values.pulse ?? "",
@@ -232,7 +227,7 @@ function PreviousPrescriptionPageInner() {
       setItems(store.loadAll());
       closeEdit();
     },
-    [editingId, form, closeEdit]
+    [editingId, closeEdit, setItems]
   );
   const onFormSubmit = useCallback(
     (e?: React.BaseSyntheticEvent) => {

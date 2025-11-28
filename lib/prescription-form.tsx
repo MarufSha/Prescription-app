@@ -10,6 +10,7 @@ import {
   useFieldArray,
   type FieldArrayPath,
   type Path,
+  type PathValue,
 } from "react-hook-form";
 import {
   FormField,
@@ -36,7 +37,7 @@ import {
 } from "@/components/ui/popover";
 import { formatDate, todayFormatted } from "@/lib/utils";
 import { X, Plus } from "lucide-react";
-import { RxTimesPerDay } from "@/types/patientTypeData";
+import { RHFInternalOptions, RxTimesPerDay } from "@/types/patientTypeData";
 
 const optionalStringList = z.preprocess(
   (v) =>
@@ -338,7 +339,10 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
   className?: string;
   blockAddIfLastEmpty?: boolean;
 }) {
-  const { control, getValues } = useFormContext<TFieldValues>();
+  const { control, getValues, resetField } = useFormContext<TFieldValues>();
+  const shouldUnregister =
+    (control as unknown as { _options?: RHFInternalOptions })._options
+      ?.shouldUnregister ?? false;
   const { fields, append, remove } = useFieldArray<
     TFieldValues,
     FieldArrayPath<TFieldValues>,
@@ -350,18 +354,26 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
     timesPerDay: undefined,
     timing: undefined,
   });
+  const syncRxArray = () => {
+    if (shouldUnregister) return;
 
+    const current = getValues(
+      name as unknown as Path<TFieldValues>
+    ) as PathValue<TFieldValues, Path<TFieldValues>>;
+
+    resetField(name as unknown as Path<TFieldValues>, {
+      defaultValue: current,
+    });
+  };
   useEffect(() => {
-    if (fields.length === 0 && !control._formValues?.rx?.length) {
-      append({
-        drug: "",
-        durationDays: undefined,
-        timesPerDay: undefined,
-        timing: undefined,
-      } as unknown as never);
+    const current = (getValues(name as unknown as Path<TFieldValues>) ??
+      []) as unknown as RxItem[];
+
+    if (fields.length === 0 && current.length === 0) {
+      append(blankRx() as unknown as never);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fields.length, append, getValues, name]);
+
   return (
     <FormField
       control={control}
@@ -375,16 +387,18 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
               variant="outline"
               size="sm"
               onClick={() => {
+                const current = (getValues(
+                  name as unknown as Path<TFieldValues>
+                ) ?? []) as unknown as RxItem[];
+
                 if (blockAddIfLastEmpty) {
-                  const current = (getValues(
-                    name as unknown as Path<TFieldValues>
-                  ) ?? []) as unknown as RxItem[];
                   const last = current[current.length - 1];
-                  if (isRxEmpty(last)) {
+                  if (!last || isRxEmpty(last)) {
                     return;
                   }
                 }
                 append(blankRx() as unknown as never);
+                syncRxArray();
               }}
               className="cursor-pointer"
             >
@@ -443,7 +457,10 @@ export function ArrayRxList<TFieldValues extends FieldValues>({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => remove(idx)}
+                    onClick={() => {
+                      remove(idx);
+                      syncRxArray();
+                    }}
                     className="cursor-pointer"
                     aria-label={`Remove RX ${idx + 1}`}
                     title="Remove"
