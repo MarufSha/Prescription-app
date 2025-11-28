@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, Download } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -35,7 +35,7 @@ import {
   ArrayRxList,
   isRxEmpty,
 } from "@/lib/prescription-form";
-
+import { downloadPrescriptionFromServer } from "@/lib/utils";
 function PreviousPrescriptionPageInner() {
   const [items, setItems] = useState<PatientTypeData[]>(() => store.loadAll());
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -82,68 +82,70 @@ function PreviousPrescriptionPageInner() {
     }
     return undefined;
   };
+  const rowToFormValues = (row: PatientTypeData): FormValues => {
+    const normalizedRx: RxItem[] = Array.isArray(row.rx)
+      ? (row.rx as unknown[]).map((r) => {
+          const obj = r as Record<string, unknown>;
 
+          const drug =
+            typeof obj.drug === "string" && obj.drug.trim() !== ""
+              ? obj.drug
+              : undefined;
+
+          const durationDays = toNumberish(obj.durationDays);
+          const timesPerDay = isTimesPerDay(obj.timesPerDay)
+            ? obj.timesPerDay
+            : undefined;
+
+          const timing =
+            obj.timing === "before" ||
+            obj.timing === "after" ||
+            obj.timing === "anytime"
+              ? (obj.timing as RxItem["timing"])
+              : undefined;
+
+          return { drug, durationDays, timesPerDay, timing };
+        })
+      : [];
+
+    return {
+      name: row.name ?? "",
+      age: Number(row.age) as number,
+      sex: (row.sex as FormValues["sex"]) ?? undefined,
+      date: new Date(row.date),
+
+      cc: Array.isArray(row.cc)
+        ? row.cc.length
+          ? row.cc
+          : [""]
+        : row.cc
+        ? [row.cc]
+        : [""],
+      dx: Array.isArray(row.dx) ? row.dx : row.dx ? [row.dx] : [],
+      rx: normalizedRx,
+      investigations: Array.isArray(row.investigations)
+        ? row.investigations
+        : row.investigations
+        ? [row.investigations]
+        : [],
+      advice: Array.isArray(row.advice)
+        ? row.advice
+        : row.advice
+        ? [row.advice]
+        : [],
+
+      pulse: row.pulse || "",
+      bp: row.bp || "",
+      sp02: row.sp02 || "",
+      others: row.others || "",
+    };
+  };
   const openEdit = useCallback(
     (id: number) => {
       const row = store.getById(id);
       if (!row) return;
 
-      const normalizedRx: RxItem[] = Array.isArray(row.rx)
-        ? (row.rx as unknown[]).map((r) => {
-            const obj = r as Record<string, unknown>;
-
-            const drug =
-              typeof obj.drug === "string" && obj.drug.trim() !== ""
-                ? obj.drug
-                : undefined;
-
-            const durationDays = toNumberish(obj.durationDays);
-            const timesPerDay = isTimesPerDay(obj.timesPerDay)
-              ? obj.timesPerDay
-              : undefined;
-
-            const timing =
-              obj.timing === "before" ||
-              obj.timing === "after" ||
-              obj.timing === "anytime"
-                ? (obj.timing as RxItem["timing"])
-                : undefined;
-
-            return { drug, durationDays, timesPerDay, timing };
-          })
-        : [];
-
-      const values: FormValues = {
-        name: row.name ?? "",
-        age: Number(row.age) as number,
-        sex: (row.sex as FormValues["sex"]) ?? undefined,
-        date: new Date(row.date),
-
-        cc: Array.isArray(row.cc)
-          ? row.cc.length
-            ? row.cc
-            : [""]
-          : row.cc
-          ? [row.cc]
-          : [""],
-        dx: Array.isArray(row.dx) ? row.dx : row.dx ? [row.dx] : [],
-        rx: normalizedRx,
-        investigations: Array.isArray(row.investigations)
-          ? row.investigations
-          : row.investigations
-          ? [row.investigations]
-          : [],
-        advice: Array.isArray(row.advice)
-          ? row.advice
-          : row.advice
-          ? [row.advice]
-          : [],
-
-        pulse: row.pulse || "",
-        bp: row.bp || "",
-        sp02: row.sp02 || "",
-        others: row.others || "",
-      };
+      const values = rowToFormValues(row);
 
       setEditingId(id);
       setDrawerOpen(true);
@@ -245,7 +247,13 @@ function PreviousPrescriptionPageInner() {
     },
     [editingId, closeEdit]
   );
+  const handleDownload = useCallback(async (id: number) => {
+    const row = store.getById(id);
+    if (!row) return;
 
+    const values = rowToFormValues(row);
+    await downloadPrescriptionFromServer(values);
+  }, []);
   const clearAll = useCallback(() => {
     store.clearAll();
     setItems([]);
@@ -306,6 +314,14 @@ function PreviousPrescriptionPageInner() {
                   </Button>
                   <Button
                     size="sm"
+                    variant="outline"
+                    onClick={() => handleDownload(it.id)}
+                    className="cursor-pointer"
+                  >
+                    <Download className="mr-1 h-4 w-4" /> Download PDF
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="destructive"
                     className="cursor-pointer"
                     onClick={() => handleDelete(it.id)}
@@ -349,7 +365,11 @@ function PreviousPrescriptionPageInner() {
                   />
                   <SexField<FormValues> name="sex" />
                 </div>
-
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
+                  <TextField<FormValues> name="pulse" label="Pulse" />
+                  <TextField<FormValues> name="sp02" label="Sp02" />
+                  <TextField<FormValues> name="bp" label="BP" />
+                </div>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
                   <TextField<FormValues>
                     name="others"

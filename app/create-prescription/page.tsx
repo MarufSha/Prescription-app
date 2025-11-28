@@ -27,6 +27,8 @@ import {
   type FormInput,
   type FormValues,
 } from "@/lib/prescription-form";
+import { Download } from "lucide-react";
+import { downloadPrescriptionFromServer } from "@/lib/utils";
 
 const blankRx = (): RxItem => ({
   drug: "",
@@ -34,32 +36,6 @@ const blankRx = (): RxItem => ({
   timesPerDay: undefined,
   timing: undefined,
 });
-
-async function downloadPrescriptionFromServer(values: FormValues) {
-  const res = await fetch("/api/prescription-pdf", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(values),
-  });
-
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    console.error("Failed to generate PDF:", res.status, msg);
-    return;
-  }
-
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Prescription_${values.name || "Patient"}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
-}
 
 const CreatePrescription = () => {
   const form = useForm<FormValues>({
@@ -251,7 +227,7 @@ const CreatePrescription = () => {
                 className="cursor-pointer"
                 onClick={form.handleSubmit(onDownloadPdf)}
               >
-                Download PDF
+                <Download className="mr-1 h-4 w-4" /> Download PDF
               </Button>
             </div>
           </form>
