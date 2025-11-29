@@ -53,6 +53,22 @@ export async function generatePrescriptionPdfBuffer(
       color: rgb(color.r, color.g, color.b),
     });
   };
+  const drawTriangle = (
+    x: number,
+    y: number,
+    size = 10,
+    color: { r: number; g: number; b: number } = { r: 0.11, g: 0.11, b: 0.11 },
+    w = 1.8
+  ) => {
+    const half = size / 2;
+    const top = { x, y: y + half };
+    const left = { x: x - half, y: y - half };
+    const right = { x: x + half, y: y - half };
+
+    drawLine(top.x, top.y, left.x, left.y, w, color);
+    drawLine(left.x, left.y, right.x, right.y, w, color);
+    drawLine(right.x, right.y, top.x, top.y, w, color);
+  };
 
   const drawLine = (
     x1: number,
@@ -233,15 +249,32 @@ export async function generatePrescriptionPdfBuffer(
     lines.forEach((ln) => leftTextLine(ln));
   });
 
+  yLeft -= LEAD * 1;
+
+  const dx = (data.dx ?? []).filter(Boolean);
+  dx.forEach((s) => {
+    drawTriangle(leftX + 6, yLeft + 3, 8);
+
+    const maxWidth = usable - 20;
+    const lines = splitText(s, maxWidth, BODY);
+
+    drawText(lines[0], leftX + 20, yLeft);
+    for (let i = 1; i < lines.length; i++) {
+      yLeft -= LEAD;
+      drawText(lines[i], leftX + 20, yLeft);
+    }
+    yLeft -= LEAD;
+  });
+
   drawText("Rx.", rightX, yRight, { bold: true, size: H1 });
   underlineTitle(rightX, yRight, "Rx.");
   yRight -= LEAD + 8;
 
   const prettyTimes = (t?: string) => {
     if (!t) return "";
-      if (t === "0+0+0") {
-    t = "1+1+1";
-  }
+    if (t === "0+0+0") {
+      t = "1+1+1";
+    }
     const [m, e, n] = t.split("+");
     const chip = (f: string, lbl: string) => (f === "1" ? lbl : "");
     return [chip(m, "Morning"), chip(e, "Evening"), chip(n, "Night")]
