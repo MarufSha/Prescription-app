@@ -63,9 +63,7 @@ const CreatePrescription = () => {
       others: "",
     },
   });
-  const onDownloadPdf: SubmitHandler<FormValues> = async (values) => {
-    await downloadPrescriptionFromServer(values);
-  };
+
   const submitLabel = useMemo(() => "Save Offline", []);
 
   function resetForm() {
@@ -86,9 +84,11 @@ const CreatePrescription = () => {
     });
   }
 
-  const onSubmit: SubmitHandler<FormInput> = (values) => {
+  const handleSubmitCommon = async (
+    values: FormInput,
+    options: { download: boolean }
+  ) => {
     const parsed: FormValues = formSchema.parse(values);
-
     const id = store.nextId();
 
     const payload: PatientTypeData = {
@@ -111,7 +111,18 @@ const CreatePrescription = () => {
     };
 
     store.add(payload);
+    if (options.download) {
+      await downloadPrescriptionFromServer(parsed);
+    }
     resetForm();
+  };
+
+  const handleSaveOffline: SubmitHandler<FormInput> = (values) => {
+    void handleSubmitCommon(values, { download: false });
+  };
+
+  const handleSaveAndDownload: SubmitHandler<FormInput> = (values) => {
+    void handleSubmitCommon(values, { download: true });
   };
 
   return (
@@ -119,7 +130,7 @@ const CreatePrescription = () => {
       <Card className="flex p-6">
         <FormProvider {...(form as unknown as UseFormReturn<FormValues>)}>
           <form
-            onSubmit={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(handleSaveOffline)}
             className="space-y-6 w-full"
           >
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
@@ -225,7 +236,7 @@ const CreatePrescription = () => {
                 type="button"
                 variant="outline"
                 className="cursor-pointer"
-                onClick={form.handleSubmit(onDownloadPdf)}
+                onClick={form.handleSubmit(handleSaveAndDownload)}
               >
                 <Download className="mr-1 h-4 w-4" /> Download PDF
               </Button>
