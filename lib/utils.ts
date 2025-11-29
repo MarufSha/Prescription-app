@@ -52,3 +52,4 @@ export async function downloadPrescriptionFromServer(values: FormValues) {
 
   URL.revokeObjectURL(url);
 }
+export const DRAFT_KEY = "prescription_draft";

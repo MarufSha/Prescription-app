@@ -1,8 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   FormProvider,
   Resolver,
@@ -27,8 +26,8 @@ import {
   type FormInput,
   type FormValues,
 } from "@/lib/prescription-form";
-import { Download } from "lucide-react";
-import { downloadPrescriptionFromServer } from "@/lib/utils";
+import { Download, Save, Trash2 } from "lucide-react";
+import { downloadPrescriptionFromServer, DRAFT_KEY } from "@/lib/utils";
 
 const blankRx = (): RxItem => ({
   drug: "",
@@ -36,6 +35,56 @@ const blankRx = (): RxItem => ({
   timesPerDay: undefined,
   timing: undefined,
 });
+
+const defaultFormValues: FormValues = {
+  name: "",
+  age: undefined as unknown as number,
+  sex: undefined,
+  date: new Date(),
+  cc: [""],
+  dx: [],
+  rx: [blankRx()],
+  investigations: [],
+  advice: [],
+  pulse: "",
+  bp: "",
+  sp02: "",
+  others: "",
+};
+
+const loadDefaultValues = async (): Promise<FormValues> => {
+  if (typeof window === "undefined") {
+    return defaultFormValues;
+  }
+
+  const raw = window.localStorage.getItem(DRAFT_KEY);
+  if (!raw) {
+    return defaultFormValues;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<FormValues>;
+
+    const merged: FormValues = {
+      ...defaultFormValues,
+      ...parsed,
+      date:
+        parsed.date && typeof parsed.date === "string"
+          ? new Date(parsed.date)
+          : parsed.date instanceof Date
+          ? parsed.date
+          : new Date(),
+      rx:
+        Array.isArray(parsed.rx) && parsed.rx.length > 0
+          ? (parsed.rx as RxItem[])
+          : [blankRx()],
+    };
+
+    return merged;
+  } catch {
+    return defaultFormValues;
+  }
+};
 
 const CreatePrescription = () => {
   const form = useForm<FormValues>({
@@ -46,42 +95,47 @@ const CreatePrescription = () => {
     >,
     mode: "onSubmit",
     reValidateMode: "onSubmit",
-    shouldUnregister: true,
-    defaultValues: {
-      name: "",
-      age: undefined as unknown as number,
-      sex: undefined,
-      date: new Date(),
-      cc: [""],
-      dx: [],
-      rx: [blankRx()],
-      investigations: [],
-      advice: [],
-      pulse: "",
-      bp: "",
-      sp02: "",
-      others: "",
-    },
+
+    shouldUnregister: false,
+    defaultValues: loadDefaultValues,
   });
 
   const submitLabel = useMemo(() => "Save Offline", []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleBeforeUnload = () => {
+      try {
+        const values = form.getValues();
+
+        const toSave: Record<string, unknown> = {
+          ...values,
+          date:
+            values.date instanceof Date
+              ? values.date.toISOString()
+              : values.date,
+        };
+
+        if (!Array.isArray(values.rx) || values.rx.length === 0) {
+          toSave.rx = [blankRx()];
+        }
+
+        window.localStorage.setItem(DRAFT_KEY, JSON.stringify(toSave));
+      } catch {}
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [form]);
 
   function resetForm() {
-    form.reset({
-      name: "",
-      age: undefined as unknown as number,
-      sex: undefined,
-      date: new Date(),
-      cc: [""],
-      dx: [],
-      rx: [blankRx()],
-      investigations: [],
-      advice: [],
-      pulse: "",
-      bp: "",
-      sp02: "",
-      others: "",
-    });
+    form.reset(defaultFormValues);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(DRAFT_KEY);
+    }
   }
 
   const handleSubmitCommon = async (
@@ -221,17 +275,20 @@ const CreatePrescription = () => {
 
             <div className="flex gap-3 justify-between">
               <Button type="submit" variant="blue">
+                <Save className="mr-1 h-4 w-4" />
                 {submitLabel}
               </Button>
-              <Link href="/previous-prescriptoin">
-                <Button
-                  type="button"
-                  variant="default"
-                  className="cursor-pointer"
-                >
-                  View Saved
-                </Button>
-              </Link>
+
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={resetForm}
+                className="cursor-pointer"
+              >
+                <Trash2 className="mr-1 h-4 w-4" />
+                Clear Form
+              </Button>
+
               <Button
                 type="button"
                 variant="outline"
