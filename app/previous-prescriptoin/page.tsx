@@ -22,7 +22,7 @@ import type {
   RxItem,
   RxTimesPerDay,
 } from "@/types/patientTypeData";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatFullDate } from "@/lib/utils";
 
 import {
   formSchema,
@@ -67,6 +67,7 @@ function PreviousPrescriptionPageInner() {
       others: "",
       investigations: [],
       advice: [],
+      followupDays: undefined as unknown as number,
     },
   });
 
@@ -140,8 +141,15 @@ function PreviousPrescriptionPageInner() {
       pulse: row.pulse || "",
       bp: row.bp || "",
       sp02: row.sp02 || "",
-      weight: Number(row.weight) as number,
+      weight:
+        typeof row.weight === "number"
+          ? (row.weight as number)
+          : (undefined as unknown as number),
       others: row.others || "",
+      followupDays:
+        typeof row.followupDays === "number"
+          ? (row.followupDays as number)
+          : (undefined as unknown as number),
     };
   };
   const openEdit = useCallback(
@@ -229,6 +237,7 @@ function PreviousPrescriptionPageInner() {
         sp02: values.sp02 ?? "",
         weight: values.weight,
         others: values.others ?? "",
+        followupDays: values.followupDays ?? undefined,
       };
 
       store.update(editingId, patch);
@@ -258,7 +267,15 @@ function PreviousPrescriptionPageInner() {
     if (!row) return;
 
     const values = rowToFormValues(row);
-    await downloadPrescriptionFromServer(values);
+
+    await downloadPrescriptionFromServer({
+      ...values,
+      puid: typeof row.puid === "number" ? row.puid : undefined,
+      followupDays:
+        typeof row.followupDays === "number"
+          ? row.followupDays
+          : values.followupDays,
+    });
   }, []);
   const clearAll = useCallback(() => {
     store.clearAll();
@@ -313,13 +330,24 @@ function PreviousPrescriptionPageInner() {
                   </div>
 
                   <div className="text-xs text-muted-foreground">
-                    Mobile: {it.mobile || "—"}
+                    Date: {formatDate(new Date(it.date))} · Mobile:{" "}
+                    {it.mobile || "—"}
                   </div>
 
                   <div className="text-xs text-muted-foreground">
-                    Date: {formatDate(new Date(it.date))} · CC:{" "}
-                    {Array.isArray(it.cc) ? it.cc[0] ?? "—" : it.cc || "—"} · RX
-                    items: {Array.isArray(it.rx) ? it.rx.length : 0}
+                    CC: {Array.isArray(it.cc) ? it.cc[0] ?? "—" : it.cc || "—"}{" "}
+                    · RX items: {Array.isArray(it.rx) ? it.rx.length : 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Follow up:{" "}
+                    {typeof it.followupDays === "number"
+                      ? formatFullDate(
+                          new Date(
+                            new Date(it.date).getTime() +
+                              it.followupDays * 24 * 60 * 60 * 1000
+                          )
+                        )
+                      : "—"}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -387,12 +415,8 @@ function PreviousPrescriptionPageInner() {
                     name="mobile"
                     label="Mobile"
                     placeholder="Enter Mobile Number"
+                    className="sm:col-span-2"
                   />
-                </div>
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
-                  <TextField<FormValues> name="pulse" label="Pulse" />
-                  <TextField<FormValues> name="sp02" label="Sp02" />
-                  <TextField<FormValues> name="bp" label="BP" />
                   <NumberField<FormValues>
                     name="weight"
                     label="Weight (kg)"
@@ -401,6 +425,11 @@ function PreviousPrescriptionPageInner() {
                     min={0.1}
                     max={1000}
                   />
+                </div>
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
+                  <TextField<FormValues> name="pulse" label="Pulse" />
+                  <TextField<FormValues> name="sp02" label="Sp02" />
+                  <TextField<FormValues> name="bp" label="BP" />
                 </div>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
                   <TextField<FormValues>
@@ -428,11 +457,20 @@ function PreviousPrescriptionPageInner() {
                   label="Investigations"
                   placeholder="Enter an investigation..."
                 />
-                <ArrayTextList<FormValues>
-                  name="advice"
-                  label="Advice"
-                  placeholder="Enter advice..."
-                />
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
+                  <ArrayTextList<FormValues>
+                    name="advice"
+                    label="Advice"
+                    placeholder="Enter advice..."
+                    className="sm:col-span-2"
+                  />
+                  <NumberField<FormValues>
+                    name="followupDays"
+                    label="Follow up in (days)"
+                    placeholder="e.g. 3"
+                  />
+                </div>
+
                 <button type="submit" className="hidden" />
               </form>
             </FormProvider>

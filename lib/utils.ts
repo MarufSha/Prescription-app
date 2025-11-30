@@ -33,25 +33,39 @@ export function isValidDate(date: Date | undefined): boolean {
 export function todayFormatted(): string {
   return formatDate(new Date());
 }
-export async function downloadPrescriptionFromServer(values: FormValues) {
-  const res = await fetch("/api/prescription-pdf", {
+export async function downloadPrescriptionFromServer(
+  data: FormValues & { puid?: number; followupDays?: number }
+) {
+  const response = await fetch("/api/prescription-pdf", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(values),
+    body: JSON.stringify(data),
   });
 
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    console.error("Failed to generate PDF:", res.status, msg);
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    console.error("Failed to generate prescription PDF", response.status, text);
     return;
   }
 
-  const blob = await res.blob();
+  const blob = await response.blob();
   const url = URL.createObjectURL(blob);
+
+  const puidPart =
+    typeof data.puid === "number"
+      ? `P-${String(data.puid).padStart(4, "0")}`
+      : "P-XXXX";
+
+  const namePart =
+    data.name?.trim().length > 0
+      ? data.name.trim().replace(/\s+/g, "_")
+      : "Patient";
+
+  const fileName = `${puidPart}_${namePart}.pdf`;
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Prescription_${values.name || "Patient"}.pdf`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -67,4 +81,12 @@ export function normalizeMobile(input: string): string {
     return digits ? `+${digits}` : "";
   }
   return trimmed.replace(/\D/g, "");
+}
+
+export function formatFullDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }

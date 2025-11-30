@@ -31,6 +31,8 @@ export type PatientTypeData = {
   sp02?: string;
   weight?: number;
   others?: string;
+
+  followupDays?: number;
 };
 
 export type RHFInternalOptions = {

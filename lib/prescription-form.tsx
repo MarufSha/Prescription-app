@@ -35,7 +35,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { cn, formatDate, normalizeMobile, todayFormatted } from "@/lib/utils";
+import { formatDate, normalizeMobile, todayFormatted } from "@/lib/utils";
 import { X, Plus } from "lucide-react";
 import {
   NumberFieldProps,
@@ -535,6 +535,27 @@ export const formSchema = z.object({
     .optional(),
 
   others: z.string().optional(),
+  
+  followupDays: z
+    .preprocess(
+      (val) => {
+        if (val === "" || val === null || val === undefined) return undefined;
+        if (typeof val === "number") return val;
+        if (typeof val === "string") {
+          const n = Number(val.trim());
+          return Number.isFinite(n) ? n : val;
+        }
+        return val;
+      },
+      z
+        .number({
+          message: "Follow up must be a whole number of days.",
+        })
+        .int("Follow up must be a whole number of days.")
+        .min(1, { message: "Follow up must be at least 1 day." })
+        .optional()
+    )
+    .optional(),
 });
 
 export type FormValues = z.output<typeof formSchema>;

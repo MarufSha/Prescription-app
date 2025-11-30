@@ -52,6 +52,7 @@ const defaultFormValues: FormValues = {
   sp02: "",
   weight: undefined as unknown as number,
   others: "",
+  followupDays: undefined as unknown as number,
 };
 
 const loadDefaultValues = async (): Promise<FormValues> => {
@@ -172,12 +173,17 @@ const CreatePrescription = () => {
       sp02: parsed.sp02 ?? "",
       weight: parsed.weight ?? undefined,
       others: parsed.others ?? "",
+      followupDays: parsed.followupDays ?? undefined,
     };
 
     store.add(payload);
 
     if (options.download) {
-      await downloadPrescriptionFromServer(parsed);
+      await downloadPrescriptionFromServer({
+        ...parsed,
+        puid: patient.puid,
+        followupDays: parsed.followupDays,
+      });
     }
 
     resetForm();
@@ -295,7 +301,12 @@ const CreatePrescription = () => {
                 name="advice"
                 label="Advice"
                 placeholder="Enter advice..."
-                className="col-span-3"
+                className="col-span-2"
+              />
+              <NumberField<FormInput>
+                name="followupDays"
+                label="Follow up in (days)"
+                placeholder="e.g. 3"
               />
             </div>
 

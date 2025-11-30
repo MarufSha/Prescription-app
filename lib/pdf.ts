@@ -2,9 +2,13 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { FormValues } from "./prescription-form";
 
 type PdfBytes = Uint8Array;
+export type PdfFormData = FormValues & {
+  puid?: number;
+  followupDays?: number;
+};
 
 export async function generatePrescriptionPdfBuffer(
-  data: FormValues
+  data: PdfFormData
 ): Promise<PdfBytes> {
   const pdfDoc = await PDFDocument.create();
 
@@ -19,7 +23,10 @@ export async function generatePrescriptionPdfBuffer(
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
+  const sexLabel =
+    data.sex && typeof data.sex === "string"
+      ? data.sex.charAt(0).toUpperCase() + data.sex.slice(1)
+      : "—";
   let y = H - margin;
 
   const drawText = (
@@ -53,22 +60,6 @@ export async function generatePrescriptionPdfBuffer(
       color: rgb(color.r, color.g, color.b),
     });
   };
-  const drawTriangle = (
-    x: number,
-    y: number,
-    size = 10,
-    color: { r: number; g: number; b: number } = { r: 0.11, g: 0.11, b: 0.11 },
-    w = 1.8
-  ) => {
-    const half = size / 2;
-    const top = { x, y: y + half };
-    const left = { x: x - half, y: y - half };
-    const right = { x: x + half, y: y - half };
-
-    drawLine(top.x, top.y, left.x, left.y, w, color);
-    drawLine(left.x, left.y, right.x, right.y, w, color);
-    drawLine(right.x, right.y, top.x, top.y, w, color);
-  };
 
   const drawLine = (
     x1: number,
@@ -90,6 +81,23 @@ export async function generatePrescriptionPdfBuffer(
     });
   };
 
+  const drawTriangle = (
+    x: number,
+    y: number,
+    size = 10,
+    color: { r: number; g: number; b: number } = { r: 0.11, g: 0.11, b: 0.11 },
+    w = 1.8
+  ) => {
+    const half = size / 2;
+    const top = { x, y: y + half };
+    const left = { x: x - half, y: y - half };
+    const right = { x: x + half, y: y - half };
+
+    drawLine(top.x, top.y, left.x, left.y, w, color);
+    drawLine(left.x, left.y, right.x, right.y, w, color);
+    drawLine(right.x, right.y, top.x, top.y, w, color);
+  };
+
   const splitText = (text: string, maxWidth: number, size: number) => {
     const words = text.split(/\s+/);
     const lines: string[] = [];
@@ -109,6 +117,29 @@ export async function generatePrescriptionPdfBuffer(
 
     if (current) lines.push(current);
     return lines;
+  };
+
+  const addDays = (date: Date, days: number): Date => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  };
+
+  const formatFollowupDate = (date: Date): string => {
+    const day = date.getDate();
+    const month = date.toLocaleString("en-US", { month: "long" });
+    const year = date.getFullYear();
+
+    const suffix =
+      day % 10 === 1 && day !== 11
+        ? "st"
+        : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+        ? "rd"
+        : "th";
+
+    return `${day}${suffix} ${month}, ${year}`;
   };
 
   drawText("Dr. John Doe, MBBS (CMC), FCPS (Medicine)", margin, y, {
@@ -157,19 +188,29 @@ export async function generatePrescriptionPdfBuffer(
   const col3X = rightColX + 2 * gap;
 
   drawText("Sex:", col1X, row1Y, { bold: true });
-  drawText(`${data.sex ?? "—"}`, col1X + 30, row1Y);
+  drawText(sexLabel, col1X + 30, row1Y);
 
-  drawText("Reg No:", col2X, row1Y, { bold: true });
-  drawText("1428", col2X + 46, row1Y);
+  drawText("PUID:", col2X, row1Y, { bold: true });
+  const puidText =
+    typeof data.puid === "number"
+      ? `P-${String(data.puid).padStart(4, "0")}`
+      : "—";
+  drawText(puidText, col2X + 46, row1Y);
 
   drawText("Mobile:", col3X, row1Y, { bold: true });
-  drawText("00000000000", col3X + 44, row1Y);
+  drawText(data.mobile || "—", col3X + 44, row1Y);
 
   drawText("Age:", col1X, row2Y, { bold: true });
   drawText(`${data.age ?? "—"}`, col1X + 30, row2Y);
 
   drawText("Weight:", col2X, row2Y, { bold: true });
-  drawText("133", col2X + 46, row2Y);
+  drawText(
+    data.weight !== undefined && data.weight !== null
+      ? String(data.weight)
+      : "—",
+    col2X + 46,
+    row2Y
+  );
 
   drawText("Date:", col3X, row2Y, { bold: true });
   drawText(
@@ -346,11 +387,37 @@ export async function generatePrescriptionPdfBuffer(
   });
 
   drawLine(margin, margin, W - margin, margin, 0.7);
-  drawText("— Review after 2 weeks —", W - margin, margin + 6, {
+
+  const followupDays =
+    typeof data.followupDays === "number" && data.followupDays > 0
+      ? data.followupDays
+      : undefined;
+
+  let reviewText = "— Review after 2 weeks —";
+  let reviewDateText = "";
+
+  if (followupDays && data.date) {
+    const baseDate = new Date(data.date);
+    const nextDate = addDays(baseDate, followupDays);
+    reviewText = `— Review after ${followupDays} day${
+      followupDays > 1 ? "s" : ""
+    } —`;
+    reviewDateText = formatFollowupDate(nextDate);
+  }
+
+  drawText(reviewText, W - margin, margin + 16, {
     size: SMALL,
     color: { r: 0.37, g: 0.37, b: 0.37 },
     align: "right",
   });
+
+  if (reviewDateText) {
+    drawText(reviewDateText, W - margin, margin + 4, {
+      size: SMALL,
+      color: { r: 0.37, g: 0.37, b: 0.37 },
+      align: "right",
+    });
+  }
 
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;
