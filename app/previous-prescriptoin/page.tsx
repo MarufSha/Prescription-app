@@ -28,12 +28,12 @@ import {
   formSchema,
   FormValues,
   TextField,
-  NumberField,
   SexField,
   DateField,
   ArrayTextList,
   ArrayRxList,
   isRxEmpty,
+  NumberField,
 } from "@/lib/prescription-form";
 import { downloadPrescriptionFromServer } from "@/lib/utils";
 function PreviousPrescriptionPageInner() {
@@ -56,12 +56,14 @@ function PreviousPrescriptionPageInner() {
       name: "",
       age: undefined as unknown as number,
       sex: undefined,
+      mobile: "",
       date: new Date(),
       cc: [],
       rx: [],
       pulse: "",
       bp: "",
       sp02: "",
+      weight: undefined as unknown as number,
       others: "",
       investigations: [],
       advice: [],
@@ -113,6 +115,7 @@ function PreviousPrescriptionPageInner() {
       age: Number(row.age) as number,
       sex: (row.sex as FormValues["sex"]) ?? undefined,
       date: new Date(row.date),
+      mobile: row.mobile ?? "",
 
       cc: Array.isArray(row.cc)
         ? row.cc.length
@@ -137,6 +140,7 @@ function PreviousPrescriptionPageInner() {
       pulse: row.pulse || "",
       bp: row.bp || "",
       sp02: row.sp02 || "",
+      weight: Number(row.weight) as number,
       others: row.others || "",
     };
   };
@@ -213,6 +217,7 @@ function PreviousPrescriptionPageInner() {
         name: values.name,
         age: values.age,
         sex: values.sex!,
+        mobile: values.mobile,
         date: values.date.toISOString(),
         cc: values.cc,
         dx: values.dx,
@@ -222,6 +227,7 @@ function PreviousPrescriptionPageInner() {
         pulse: values.pulse ?? "",
         bp: values.bp ?? "",
         sp02: values.sp02 ?? "",
+        weight: values.weight,
         others: values.others ?? "",
       };
 
@@ -293,14 +299,27 @@ function PreviousPrescriptionPageInner() {
                 key={it.id}
                 className="flex flex-wrap items-center justify-between rounded-lg border p-3"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 space-y-1">
                   <div className="font-medium">
-                    #{it.id} · {it.name} · {it.age} · {it.sex}
+                    #{it.id} · {it.name} · {it.age} ·{" "}
+                    {it.sex
+                      ? it.sex.charAt(0).toUpperCase() + it.sex.slice(1)
+                      : "—"}{" "}
+                    · Visit: {typeof it.visitNo === "number" ? it.visitNo : "—"}{" "}
+                    · PUID:{" "}
+                    {typeof it.puid === "number"
+                      ? `P-${String(it.puid).padStart(4, "0")}`
+                      : "—"}
                   </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    Mobile: {it.mobile || "—"}
+                  </div>
+
                   <div className="text-xs text-muted-foreground">
                     Date: {formatDate(new Date(it.date))} · CC:{" "}
                     {Array.isArray(it.cc) ? it.cc[0] ?? "—" : it.cc || "—"} · RX
-                    items: {Array.isArray(it.rx) ? it.rx.length : it.rx ? 1 : 0}
+                    items: {Array.isArray(it.rx) ? it.rx.length : 0}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -364,11 +383,24 @@ function PreviousPrescriptionPageInner() {
                     placeholder="Please Enter Age"
                   />
                   <SexField<FormValues> name="sex" />
+                  <TextField<FormValues>
+                    name="mobile"
+                    label="Mobile"
+                    placeholder="Enter Mobile Number"
+                  />
                 </div>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
                   <TextField<FormValues> name="pulse" label="Pulse" />
                   <TextField<FormValues> name="sp02" label="Sp02" />
                   <TextField<FormValues> name="bp" label="BP" />
+                  <NumberField<FormValues>
+                    name="weight"
+                    label="Weight (kg)"
+                    placeholder="0.1 – 1000"
+                    step={0.1}
+                    min={0.1}
+                    max={1000}
+                  />
                 </div>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
                   <TextField<FormValues>

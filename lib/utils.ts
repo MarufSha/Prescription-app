@@ -1,6 +1,12 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { FormValues } from "@/lib/prescription-form";
+
+export const DRAFT_KEY = "prescription_draft";
+export const LS_KEY = "prescriptions:v1";
+export const ID_SEQ_KEY = "prescriptions:id-seq";
+export const PATIENTS_KEY = "patients";
+export const NEXT_PUID_KEY = "nextPatientId";
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -52,4 +58,13 @@ export async function downloadPrescriptionFromServer(values: FormValues) {
 
   URL.revokeObjectURL(url);
 }
-export const DRAFT_KEY = "prescription_draft";
+
+export function normalizeMobile(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("+")) {
+    const digits = trimmed.slice(1).replace(/\D/g, "");
+    return digits ? `+${digits}` : "";
+  }
+  return trimmed.replace(/\D/g, "");
+}

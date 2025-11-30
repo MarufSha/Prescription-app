@@ -35,9 +35,13 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { formatDate, todayFormatted } from "@/lib/utils";
+import { cn, formatDate, normalizeMobile, todayFormatted } from "@/lib/utils";
 import { X, Plus } from "lucide-react";
-import { RHFInternalOptions, RxTimesPerDay } from "@/types/patientTypeData";
+import {
+  NumberFieldProps,
+  RHFInternalOptions,
+  RxTimesPerDay,
+} from "@/types/patientTypeData";
 
 const optionalStringList = z.preprocess(
   (v) =>
@@ -491,6 +495,13 @@ export const formSchema = z.object({
     .refine((val) => !!val, {
       message: "Please select a gender",
     }),
+  mobile: z
+    .string()
+    .min(1, { message: "Mobile number is required." })
+    .transform((val) => normalizeMobile(val))
+    .refine((val) => val.length >= 11 && val.length <= 14, {
+      message: "Enter a valid mobile number.",
+    }),
   date: z.date(),
 
   cc: requiredStringList,
@@ -502,6 +513,27 @@ export const formSchema = z.object({
   pulse: z.string().optional(),
   bp: z.string().optional(),
   sp02: z.string().optional(),
+  weight: z
+    .preprocess(
+      (val) => {
+        if (val === "" || val === null || val === undefined) return undefined;
+        if (typeof val === "number") return val;
+        if (typeof val === "string") {
+          const n = Number(val.trim());
+          return Number.isFinite(n) ? n : val;
+        }
+        return val;
+      },
+      z
+        .number({
+          message: "Weight must be a number.",
+        })
+        .min(0.1, { message: "Weight must be at least 0.1 kg." })
+        .max(1000, { message: "Weight cannot exceed 1000 kg." })
+        .optional()
+    )
+    .optional(),
+
   others: z.string().optional(),
 });
 
@@ -532,49 +564,6 @@ export function TextField<TFieldValues extends FieldValues>({
               placeholder={placeholder}
               value={(field.value ?? "") as string}
               onChange={(e) => field.onChange(e.target.value)}
-            />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-}
-
-export function NumberField<TFieldValues extends FieldValues>({
-  name,
-  label,
-  placeholder,
-  className,
-}: {
-  name: FieldPath<TFieldValues>;
-  label: string;
-  placeholder?: string;
-  className?: string;
-}) {
-  const { control } = useFormContext<TFieldValues>();
-  return (
-    <FormField
-      name={name}
-      control={control}
-      render={({ field }) => (
-        <FormItem className={className}>
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Input
-              type="number"
-              inputMode="numeric"
-              placeholder={placeholder}
-              value={(field.value ?? "") as string | number}
-              onChange={(e) => {
-                const raw = e.target.value;
-                if (raw === "") {
-                  field.onChange("");
-                } else {
-                  const n = e.currentTarget.valueAsNumber;
-                  field.onChange(Number.isNaN(n) ? "" : n);
-                }
-              }}
             />
           </FormControl>
           <FormMessage />
@@ -622,7 +611,54 @@ export function SexField<TFieldValues extends FieldValues>({
     />
   );
 }
+export function NumberField<TFormValues extends FieldValues>({
+  name,
+  label,
+  placeholder,
+  className,
+  step,
+  min,
+  max,
+}: NumberFieldProps<TFormValues>) {
+  const { control } = useFormContext<TFormValues>();
 
+  return (
+    <FormField
+      name={name as FieldPath<TFormValues>}
+      control={control}
+      render={({ field, fieldState }) => (
+        <FormItem className={className}>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input
+              id={name}
+              type="number"
+              placeholder={placeholder}
+              step={step}
+              min={min}
+              max={max}
+              value={field.value ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "") {
+                  field.onChange(undefined);
+                } else {
+                  const num = Number(val);
+                  field.onChange(Number.isFinite(num) ? num : undefined);
+                }
+              }}
+            />
+          </FormControl>
+          {fieldState.error && (
+            <p className="text-xs text-destructive">
+              {String(fieldState.error.message ?? "Invalid value")}
+            </p>
+          )}
+        </FormItem>
+      )}
+    />
+  );
+}
 export function DateField<TFieldValues extends FieldValues>({
   name,
   label = "Date",

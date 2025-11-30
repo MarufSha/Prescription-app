@@ -40,6 +40,7 @@ const defaultFormValues: FormValues = {
   name: "",
   age: undefined as unknown as number,
   sex: undefined,
+  mobile: "",
   date: new Date(),
   cc: [""],
   dx: [],
@@ -49,6 +50,7 @@ const defaultFormValues: FormValues = {
   pulse: "",
   bp: "",
   sp02: "",
+  weight: undefined as unknown as number,
   others: "",
 };
 
@@ -95,12 +97,12 @@ const CreatePrescription = () => {
     >,
     mode: "onSubmit",
     reValidateMode: "onSubmit",
-
     shouldUnregister: false,
     defaultValues: loadDefaultValues,
   });
 
   const submitLabel = useMemo(() => "Save Offline", []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -143,31 +145,41 @@ const CreatePrescription = () => {
     options: { download: boolean }
   ) => {
     const parsed: FormValues = formSchema.parse(values);
+
+    const patient = store.getOrCreatePatient(parsed.name, parsed.mobile);
+    const visitNo = store.incrementVisitNo(patient.puid);
+
     const id = store.nextId();
 
     const payload: PatientTypeData = {
       id,
+      puid: patient.puid,
+      visitNo,
       name: parsed.name,
       age: parsed.age,
       sex: parsed.sex!,
+      mobile: parsed.mobile,
       date: parsed.date.toISOString(),
 
       cc: parsed.cc,
       dx: parsed.dx,
-      rx: (values.rx ?? []) as RxItem[],
+      rx: (parsed.rx ?? []) as RxItem[],
       investigations: parsed.investigations,
       advice: parsed.advice,
 
       pulse: parsed.pulse ?? "",
       bp: parsed.bp ?? "",
       sp02: parsed.sp02 ?? "",
+      weight: parsed.weight ?? undefined,
       others: parsed.others ?? "",
     };
 
     store.add(payload);
+
     if (options.download) {
       await downloadPrescriptionFromServer(parsed);
     }
+
     resetForm();
   };
 
@@ -199,6 +211,20 @@ const CreatePrescription = () => {
                 placeholder="Please Enter Age"
               />
               <SexField<FormInput> name="sex" label="Sex" />
+              <TextField<FormInput>
+                name="mobile"
+                label="Mobile"
+                placeholder="Enter Mobile Number"
+                className="col-span-2"
+              />
+              <NumberField<FormInput>
+                name="weight"
+                label="Weight (kg)"
+                placeholder="0.1 – 1000"
+                step={0.1}
+                min={0.1}
+                max={1000}
+              />
             </div>
 
             <div className="grid gap-6 grid-cols-[repeat(3,12rem)]">
