@@ -19,7 +19,7 @@ export default function Home() {
             Create A Prescription
           </Button>
         </Link>
-        <Link href="/previous-prescriptoin">
+        <Link href="/previous-prescription">
           <Button variant={"outline"} className="cursor-pointer">
             View Past Prescriptions
           </Button>

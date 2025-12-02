@@ -19,12 +19,12 @@ export const items = [
   },
   {
     title: "Previous Prescriptions",
-    url: "/previous-prescriptoin",
+    url: "/previous-prescription",
     icon: History,
   },
   {
     title: "Calendar",
-    url: "#",
+    url: "/calendar",
     icon: CalendarDays,
   },
   {

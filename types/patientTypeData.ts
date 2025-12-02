@@ -55,3 +55,13 @@ export type NumberFieldProps<TFormValues extends FieldValues> = {
   min?: number;
   max?: number;
 };
+export type FollowupAppointment = {
+  id: number;
+  puid: number;
+  visitNo: number;
+  patientName: string;
+  appointmentDate: Date;
+  originalDate: Date;
+  followupDays: number;
+  ccSummary: string;
+};
