@@ -16,7 +16,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 
-import * as store from "@/lib/storage";
+import * as store from "@/lib/storage/patients";
 import type {
   PatientTypeData,
   RxItem,

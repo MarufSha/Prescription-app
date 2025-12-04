@@ -12,7 +12,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import * as store from "@/lib/storage";
+import * as store from "@/lib/storage/patients";
 import type { PatientTypeData, RxItem } from "@/types/patientTypeData";
 
 import {

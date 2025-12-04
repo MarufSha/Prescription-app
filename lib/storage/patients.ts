@@ -5,7 +5,7 @@ import {
   NEXT_PUID_KEY,
   normalizeMobile,
   PATIENTS_KEY,
-} from "./utils";
+} from "@/lib/utils";
 
 export function loadAll(): PatientTypeData[] {
   if (typeof window === "undefined") return [];
@@ -52,7 +52,6 @@ export function clearAll() {
 
 export function nextId(): number {
   if (typeof window === "undefined") return 1;
-
 
   let current = parseInt(localStorage.getItem(ID_SEQ_KEY) ?? "0", 10);
   if (!Number.isFinite(current) || current < 0) current = 0;

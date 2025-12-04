@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "Prescription App",
   description: "Prescription App made with Next.js",
   icons: {
-    icon: "/images/prescription.png", // <-- root-relative!
+    icon: "/images/prescription.png",
   },
 };
 

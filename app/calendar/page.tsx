@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
-import * as store from "@/lib/storage";
+import * as store from "@/lib/storage/patients";
 import type {
   FollowupAppointment,
   PatientTypeData,

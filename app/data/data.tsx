@@ -4,6 +4,7 @@ import {
   History,
   Home,
   Settings,
+  UsersRound,
 } from "lucide-react";
 
 export const items = [
@@ -11,6 +12,11 @@ export const items = [
     title: "Home",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Doctor Profile",
+    url: "/doctor-profile",
+    icon: UsersRound,
   },
   {
     title: "Create Prescription",
