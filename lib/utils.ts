@@ -7,6 +7,8 @@ export const LS_KEY = "prescriptions:v1";
 export const ID_SEQ_KEY = "prescriptions:id-seq";
 export const PATIENTS_KEY = "patients";
 export const NEXT_PUID_KEY = "nextPatientId";
+export const DOCTORS_KEY = "doctors:v1";
+export const DOCTOR_ID_SEQ_KEY = "doctors:id-seq";
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
