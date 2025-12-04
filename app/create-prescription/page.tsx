@@ -28,6 +28,7 @@ import {
 } from "@/lib/prescription-form";
 import { Download, Save, Trash2 } from "lucide-react";
 import { downloadPrescriptionFromServer, DRAFT_KEY } from "@/lib/utils";
+import { useDoctorsStore } from "../../hooks/use-DoctorsStore";
 
 const blankRx = (): RxItem => ({
   drug: "",
@@ -103,6 +104,8 @@ const CreatePrescription = () => {
   });
 
   const submitLabel = useMemo(() => "Save Offline", []);
+  const { doctors, currentDoctorId } = useDoctorsStore();
+  const currentDoctor = doctors.find((d) => d.id === currentDoctorId) ?? null;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -179,11 +182,14 @@ const CreatePrescription = () => {
     store.add(payload);
 
     if (options.download) {
-      await downloadPrescriptionFromServer({
-        ...parsed,
-        puid: patient.puid,
-        followupDays: parsed.followupDays,
-      });
+      await downloadPrescriptionFromServer(
+        {
+          ...parsed,
+          puid: patient.puid,
+          followupDays: parsed.followupDays,
+        },
+        currentDoctor
+      );
     }
 
     resetForm();

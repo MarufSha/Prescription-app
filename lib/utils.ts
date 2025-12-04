@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { FormValues } from "@/lib/prescription-form";
+import { DoctorTypeData } from "@/types/doctorTypeData";
 
 export const DRAFT_KEY = "prescription_draft";
 export const LS_KEY = "prescriptions:v1";
@@ -36,12 +37,16 @@ export function todayFormatted(): string {
   return formatDate(new Date());
 }
 export async function downloadPrescriptionFromServer(
-  data: FormValues & { puid?: number; followupDays?: number }
+  data: FormValues & { puid?: number; followupDays?: number },
+  doctor: DoctorTypeData | null
 ) {
   const response = await fetch("/api/prescription-pdf", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      form: data,
+      doctor,
+    }),
   });
 
   if (!response.ok) {

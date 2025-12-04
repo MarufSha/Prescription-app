@@ -36,10 +36,13 @@ import {
   NumberField,
 } from "@/lib/prescription-form";
 import { downloadPrescriptionFromServer } from "@/lib/utils";
+import { useDoctorsStore } from "@/hooks/use-DoctorsStore";
 function PreviousPrescriptionPageInner() {
   const [items, setItems] = useState<PatientTypeData[]>(() => store.loadAll());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const { doctors, currentDoctorId } = useDoctorsStore();
+  const currentDoctor = doctors.find((d) => d.id === currentDoctorId) ?? null;
 
   const resolver = zodResolver(formSchema) as unknown as Resolver<
     FormValues,
@@ -262,21 +265,29 @@ function PreviousPrescriptionPageInner() {
     },
     [editingId, closeEdit]
   );
-  const handleDownload = useCallback(async (id: number) => {
-    const row = store.getById(id);
-    if (!row) return;
 
-    const values = rowToFormValues(row);
+  const handleDownload = useCallback(
+    async (id: number) => {
+      const row = store.getById(id);
+      if (!row) return;
 
-    await downloadPrescriptionFromServer({
-      ...values,
-      puid: typeof row.puid === "number" ? row.puid : undefined,
-      followupDays:
-        typeof row.followupDays === "number"
-          ? row.followupDays
-          : values.followupDays,
-    });
-  }, []);
+      const values = rowToFormValues(row);
+
+      await downloadPrescriptionFromServer(
+        {
+          ...values,
+          puid: typeof row.puid === "number" ? row.puid : undefined,
+          followupDays:
+            typeof row.followupDays === "number"
+              ? row.followupDays
+              : values.followupDays,
+        },
+        currentDoctor
+      );
+    },
+    [currentDoctor]
+  );
+
   const clearAll = useCallback(() => {
     store.clearAll();
     setItems([]);

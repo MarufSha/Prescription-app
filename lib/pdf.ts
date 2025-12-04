@@ -1,14 +1,17 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { FormValues } from "./prescription-form";
+import type { DoctorTypeData } from "@/types/doctorTypeData";
 
 type PdfBytes = Uint8Array;
 export type PdfFormData = FormValues & {
   puid?: number;
   followupDays?: number;
 };
+export type PdfDoctorData = DoctorTypeData | null;
 
 export async function generatePrescriptionPdfBuffer(
-  data: PdfFormData
+  data: PdfFormData,
+  doctor: PdfDoctorData
 ): Promise<PdfBytes> {
   const pdfDoc = await PDFDocument.create();
 
@@ -142,31 +145,63 @@ export async function generatePrescriptionPdfBuffer(
     return `${day}${suffix} ${month}, ${year}`;
   };
 
-  drawText("Dr. John Doe, MBBS (CMC), FCPS (Medicine)", margin, y, {
+  const headerNameLine = doctor
+    ? [
+        doctor.name,
+        doctor.degrees && doctor.degrees.length
+          ? `, ${doctor.degrees.join(", ")}`
+          : "",
+      ].join("")
+    : "";
+
+  drawText(headerNameLine, margin, y, {
     size: H1,
     bold: true,
   });
 
   y -= LEAD + 2;
 
-  drawText("Consultant, Dept. of Medicine", margin, y, { size: SMALL });
+  const headerSpecialtyLine =
+    doctor?.specialty || "";
+  drawText(headerSpecialtyLine, margin, y, { size: SMALL });
   y -= LEAD;
-  drawText("Doe Medical College Hospital", margin, y, { size: SMALL });
+
+  const headerChamberNameLine =
+    doctor?.chamberName || "";
+  drawText(headerChamberNameLine, margin, y, { size: SMALL });
   y -= LEAD;
-  drawText("Visiting Hours: 5:00 PM – 9:00 PM", margin, y, { size: SMALL });
+
+  const headerChamberAddressLine =
+    doctor?.chamberAddress || "";
+  drawText(headerChamberAddressLine, margin, y, { size: SMALL });
 
   let rightY = H - margin - LEAD - 2;
-  drawText("BMDC Reg. No.: A119962", W - margin, rightY, {
+
+  const bmdcLine = doctor?.bmdcNo
+    ? `BMDC Reg. No.: ${doctor.bmdcNo}`
+    : "";
+
+  drawText(bmdcLine, W - margin, rightY, {
     size: SMALL,
     align: "right",
   });
   rightY -= LEAD;
-  drawText("Clinic: Medilife Chamber, Dhaka", W - margin, rightY, {
+
+  const clinicLine = doctor?.chamberName
+    ? `Clinic: ${doctor.chamberName}`
+    : "";
+
+  drawText(clinicLine, W - margin, rightY, {
     size: SMALL,
     align: "right",
   });
   rightY -= LEAD;
-  drawText("Phone: 01700-000000", W - margin, rightY, {
+
+  const phoneLine = doctor?.mobile
+    ? `Phone: ${doctor.mobile}`
+    : "";
+
+  drawText(phoneLine, W - margin, rightY, {
     size: SMALL,
     align: "right",
   });
