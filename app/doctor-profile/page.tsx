@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, Trash2 } from "lucide-react";
+import { CheckCircle2, Trash2, UserPen } from "lucide-react";
 
 import * as doctorStore from "@/lib/storage/doctor";
 import type { DoctorTypeData } from "@/types/doctorTypeData";
@@ -57,6 +58,7 @@ const defaultValues: DoctorFormValues = {
 
 export default function DoctorProfile() {
   const { doctors: items, currentDoctorId } = useDoctorsStore();
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const form = useForm<DoctorFormValues>({
     resolver: zodResolver(doctorFormSchema),
@@ -72,27 +74,46 @@ export default function DoctorProfile() {
         .map((s) => s.trim())
         .filter(Boolean) ?? [];
 
-    const payload: DoctorTypeData = {
-      id: doctorStore.nextDoctorId(),
-      name: values.name.trim(),
-      degrees: degreesArr,
-      specialty: values.specialty.trim(),
-      bmdcNo: values.bmdcNo.trim(),
-      chamberName: values.chamberName.trim(),
-      chamberAddress: values.chamberAddress.trim(),
-      mobile: values.mobile.trim(),
-      email: values.email?.trim() || undefined,
-    };
+    if (editingId != null) {
+      // ✅ edit path
+      doctorStore.updateDoctor(editingId, {
+        name: values.name.trim(),
+        degrees: degreesArr,
+        specialty: values.specialty.trim(),
+        bmdcNo: values.bmdcNo.trim(),
+        chamberName: values.chamberName.trim(),
+        chamberAddress: values.chamberAddress.trim(),
+        mobile: values.mobile.trim(),
+        email: values.email?.trim() || undefined,
+      });
+    } else {
+      // ✅ add path
+      const newId = doctorStore.nextDoctorId();
+      const payload: DoctorTypeData = {
+        id: newId,
+        name: values.name.trim(),
+        degrees: degreesArr,
+        specialty: values.specialty.trim(),
+        bmdcNo: values.bmdcNo.trim(),
+        chamberName: values.chamberName.trim(),
+        chamberAddress: values.chamberAddress.trim(),
+        mobile: values.mobile.trim(),
+        email: values.email?.trim() || undefined,
+      };
 
-    doctorStore.addDoctor(payload);
+      doctorStore.addDoctor(payload);
 
-    const all = doctorStore.loadDoctors();
-    const storedCurrent = doctorStore.loadCurrentDoctorId();
-    if (!storedCurrent && all.length === 1) {
-      doctorStore.saveCurrentDoctorId(payload.id);
+      const all = doctorStore.loadDoctors();
+      const storedCurrent = doctorStore.loadCurrentDoctorId();
+      if (!storedCurrent && all.length === 1) {
+        doctorStore.saveCurrentDoctorId(newId);
+      }
     }
 
+    // 🔔 this is what forces the UI to refresh for BOTH add + edit
     notifyDoctorsStore();
+
+    setEditingId(null);
     form.reset(defaultValues);
   };
 
@@ -111,6 +132,10 @@ export default function DoctorProfile() {
         doctorStore.saveCurrentDoctorId(null as unknown as number);
       }
     }
+    if (editingId === id) {
+      setEditingId(null);
+      form.reset(defaultValues);
+    }
 
     notifyDoctorsStore();
   }
@@ -118,12 +143,27 @@ export default function DoctorProfile() {
   function handleClearAll() {
     doctorStore.clearAllDoctors();
     doctorStore.saveCurrentDoctorId(null as unknown as number);
+    setEditingId(null);
+    form.reset(defaultValues);
     notifyDoctorsStore();
   }
 
   function handleSetCurrent(id: number) {
     doctorStore.saveCurrentDoctorId(id);
     notifyDoctorsStore();
+  }
+  function handleEdit(doc: DoctorTypeData) {
+    setEditingId(doc.id);
+    form.reset({
+      name: doc.name ?? "",
+      degrees: (doc.degrees ?? []).join(", "),
+      specialty: doc.specialty ?? "",
+      bmdcNo: doc.bmdcNo ?? "",
+      chamberName: doc.chamberName ?? "",
+      chamberAddress: doc.chamberAddress ?? "",
+      mobile: doc.mobile ?? "",
+      email: doc.email ?? "",
+    });
   }
 
   const hasItems = items.length > 0;
@@ -270,13 +310,16 @@ export default function DoctorProfile() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => form.reset(defaultValues)}
+                onClick={() => {
+                  setEditingId(null);
+                  form.reset(defaultValues);
+                }}
                 className="cursor-pointer"
               >
-                Reset
+                {editingId ? "Cancel" : "Reset"}
               </Button>
               <Button type="submit" className="cursor-pointer">
-                Save Doctor
+                {editingId ? "Update Doctor" : "Save Doctor"}
               </Button>
             </div>
           </form>
@@ -359,15 +402,25 @@ export default function DoctorProfile() {
                         Set as current
                       </Button>
                     )}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="cursor-pointer"
+                        onClick={() => handleEdit(doc)}
+                      >
+                        <UserPen className="h-4 w-4" />
+                      </Button>
 
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive cursor-pointer"
-                      onClick={() => handleDelete(doc.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive cursor-pointer"
+                        onClick={() => handleDelete(doc.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

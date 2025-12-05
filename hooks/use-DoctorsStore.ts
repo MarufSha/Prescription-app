@@ -38,7 +38,7 @@ function getClientSnapshot(): DoctorsSnapshot {
 
   const key = JSON.stringify({
     currentDoctorId,
-    ids: doctors.map((d) => d.id),
+    doctors,
   });
 
   if (key === clientSnapshotKey) {
