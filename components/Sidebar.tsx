@@ -9,9 +9,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { items } from "@/app/data/data";
+import Link from "next/link";
 export function AppSidebar() {
   return (
-    <Sidebar>
+    <Sidebar className="hidden md:flex">
       <SidebarContent className="p-4 font-semibold">
         <SidebarGroup>
           <SidebarGroupLabel>Application</SidebarGroupLabel>
@@ -20,10 +21,10 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
