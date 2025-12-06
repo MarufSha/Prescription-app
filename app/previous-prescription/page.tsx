@@ -29,6 +29,7 @@ import type {
   RxItem,
   RxTimesPerDay,
   SortKey,
+  SearchKey,
 } from "@/types/patientTypeData";
 import { formatDate, formatFullDate } from "@/lib/utils";
 
@@ -45,15 +46,17 @@ import {
 } from "@/lib/prescription-form";
 import { downloadPrescriptionFromServer } from "@/lib/utils";
 import { useDoctorsStore } from "@/hooks/use-DoctorsStore";
+import { Input } from "@/components/ui/input";
 function PreviousPrescriptionPageInner() {
   const [items, setItems] = useState<PatientTypeData[]>(() => store.loadAll());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const { doctors, currentDoctorId } = useDoctorsStore();
   const currentDoctor = doctors.find((d) => d.id === currentDoctorId) ?? null;
-  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-
+  const [searchKey, setSearchKey] = useState<SearchKey>("name");
+  const [searchQuery, setSearchQuery] = useState("");
   const resolver = zodResolver(formSchema) as unknown as Resolver<
     FormValues,
     undefined,
@@ -308,12 +311,17 @@ function PreviousPrescriptionPageInner() {
     key: SortKey
   ): string | number => {
     switch (key) {
+      case "id":
+        return row.id ?? 0;
+
       case "name":
         return (row.name ?? "").toString().toLowerCase();
+
       case "age": {
         const n = Number(row.age);
         return Number.isFinite(n) ? n : 0;
       }
+
       case "visitNo": {
         const raw =
           typeof row.visitNo === "number"
@@ -323,6 +331,7 @@ function PreviousPrescriptionPageInner() {
             : 0;
         return Number.isFinite(raw) ? raw : 0;
       }
+
       case "puid": {
         const raw =
           typeof row.puid === "number"
@@ -332,16 +341,72 @@ function PreviousPrescriptionPageInner() {
             : 0;
         return Number.isFinite(raw) ? raw : 0;
       }
-      case "date":
-      default: {
-        const t = new Date(row.date).getTime();
-        return Number.isFinite(t) ? t : 0;
+
+      case "weight": {
+        const n =
+          typeof row.weight === "number"
+            ? row.weight
+            : row.weight !== undefined
+            ? Number(row.weight)
+            : 0;
+        return Number.isFinite(n) ? n : 0;
       }
+
+      default:
+        return row.id ?? 0; // safety fallback
     }
   };
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return items;
+
+    return items.filter((row) => {
+      switch (searchKey) {
+        case "name": {
+          const v = (row.name ?? "").toString().toLowerCase();
+          return v.includes(q);
+        }
+        case "mobile": {
+          const v = (row.mobile ?? "").toString().toLowerCase();
+          return v.includes(q);
+        }
+        case "puid": {
+          const raw =
+            typeof row.puid === "number"
+              ? row.puid
+              : row.puid !== undefined
+              ? Number(row.puid)
+              : undefined;
+          const v = raw !== undefined ? String(raw) : "";
+          return v.toLowerCase().includes(q);
+        }
+        case "visitNo": {
+          const raw =
+            typeof row.visitNo === "number"
+              ? row.visitNo
+              : row.visitNo !== undefined
+              ? Number(row.visitNo)
+              : undefined;
+          const v = raw !== undefined ? String(raw) : "";
+          return v.toLowerCase().includes(q);
+        }
+        case "cc": {
+          let ccText = "";
+          if (Array.isArray(row.cc)) {
+            ccText = row.cc.join(" ");
+          } else if (row.cc) {
+            ccText = String(row.cc);
+          }
+          return ccText.toLowerCase().includes(q);
+        }
+        default:
+          return true;
+      }
+    });
+  }, [items, searchKey, searchQuery]);
 
   const sortedItems = useMemo(() => {
-    const list = [...items];
+    const list = [...filteredItems];
     list.sort((a, b) => {
       const av = getSortValue(a, sortKey);
       const bv = getSortValue(b, sortKey);
@@ -351,7 +416,7 @@ function PreviousPrescriptionPageInner() {
       return 0;
     });
     return list;
-  }, [items, sortKey, sortDirection]);
+  }, [filteredItems, sortKey, sortDirection]);
   const toggleSortDirection = () => {
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
   };
@@ -378,20 +443,20 @@ function PreviousPrescriptionPageInner() {
       </div>
       <div className="w-full max-w-5xl px-1 flex items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-muted-foreground">Sort by</span>
           <Select
             value={sortKey}
             onValueChange={(val) => setSortKey(val as SortKey)}
           >
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select field" />
+              <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="id">ID</SelectItem>
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="age">Age</SelectItem>
               <SelectItem value="visitNo">Visit No</SelectItem>
               <SelectItem value="puid">PUID</SelectItem>
+              <SelectItem value="weight">Weight</SelectItem>
             </SelectContent>
           </Select>
 
@@ -414,6 +479,29 @@ function PreviousPrescriptionPageInner() {
           <span className="text-xs text-muted-foreground">
             {sortDirection === "asc" ? "Ascending" : "Descending"}
           </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={searchKey}
+            onValueChange={(val) => setSearchKey(val as SearchKey)}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Search by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="mobile">Mobile</SelectItem>
+              <SelectItem value="puid">PUID</SelectItem>
+              <SelectItem value="visitNo">Visit No</SelectItem>
+              <SelectItem value="cc">C/C</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            className="w-40 sm:w-56"
+            placeholder="Search…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
 

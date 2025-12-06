@@ -65,4 +65,5 @@ export type FollowupAppointment = {
   followupDays: number;
   ccSummary: string;
 };
-export type SortKey = "date" | "name" | "age" | "visitNo" | "puid";
+export type SortKey = "id" | "name" | "age" | "visitNo" | "puid" | "weight";
+export type SearchKey = "name" | "mobile" | "puid" | "visitNo" | "cc";
