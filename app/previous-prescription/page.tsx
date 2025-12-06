@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, ArrowLeft, Download } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, Download, ArrowUpDown } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,12 +15,20 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 import * as store from "@/lib/storage/patients";
 import type {
   PatientTypeData,
   RxItem,
   RxTimesPerDay,
+  SortKey,
 } from "@/types/patientTypeData";
 import { formatDate, formatFullDate } from "@/lib/utils";
 
@@ -43,6 +51,8 @@ function PreviousPrescriptionPageInner() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const { doctors, currentDoctorId } = useDoctorsStore();
   const currentDoctor = doctors.find((d) => d.id === currentDoctorId) ?? null;
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const resolver = zodResolver(formSchema) as unknown as Resolver<
     FormValues,
@@ -293,6 +303,58 @@ function PreviousPrescriptionPageInner() {
     setItems([]);
     closeEdit();
   }, [closeEdit]);
+  const getSortValue = (
+    row: PatientTypeData,
+    key: SortKey
+  ): string | number => {
+    switch (key) {
+      case "name":
+        return (row.name ?? "").toString().toLowerCase();
+      case "age": {
+        const n = Number(row.age);
+        return Number.isFinite(n) ? n : 0;
+      }
+      case "visitNo": {
+        const raw =
+          typeof row.visitNo === "number"
+            ? row.visitNo
+            : row.visitNo !== undefined
+            ? Number(row.visitNo)
+            : 0;
+        return Number.isFinite(raw) ? raw : 0;
+      }
+      case "puid": {
+        const raw =
+          typeof row.puid === "number"
+            ? row.puid
+            : row.puid !== undefined
+            ? Number(row.puid)
+            : 0;
+        return Number.isFinite(raw) ? raw : 0;
+      }
+      case "date":
+      default: {
+        const t = new Date(row.date).getTime();
+        return Number.isFinite(t) ? t : 0;
+      }
+    }
+  };
+
+  const sortedItems = useMemo(() => {
+    const list = [...items];
+    list.sort((a, b) => {
+      const av = getSortValue(a, sortKey);
+      const bv = getSortValue(b, sortKey);
+
+      if (av < bv) return sortDirection === "asc" ? -1 : 1;
+      if (av > bv) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [items, sortKey, sortDirection]);
+  const toggleSortDirection = () => {
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
 
   return (
     <div className="flex flex-col gap-6 pt-6 items-center h-full">
@@ -314,6 +376,46 @@ function PreviousPrescriptionPageInner() {
           </Button>
         </div>
       </div>
+      <div className="w-full max-w-5xl px-1 flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-muted-foreground">Sort by</span>
+          <Select
+            value={sortKey}
+            onValueChange={(val) => setSortKey(val as SortKey)}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Select field" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date">Date</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="age">Age</SelectItem>
+              <SelectItem value="visitNo">Visit No</SelectItem>
+              <SelectItem value="puid">PUID</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={toggleSortDirection}
+            className="cursor-pointer"
+            disabled={!hasItems}
+            aria-label="Toggle sort direction"
+            title={
+              sortDirection === "asc"
+                ? "Ascending (click to switch to descending)"
+                : "Descending (click to switch to ascending)"
+            }
+          >
+            <ArrowUpDown className="h-4 w-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {sortDirection === "asc" ? "Ascending" : "Descending"}
+          </span>
+        </div>
+      </div>
 
       <Card className="w-full max-w-5xl p-4">
         {!hasItems ? (
@@ -322,7 +424,7 @@ function PreviousPrescriptionPageInner() {
           </p>
         ) : (
           <div className="grid gap-2">
-            {items.map((it) => (
+            {sortedItems.map((it) => (
               <div
                 key={it.id}
                 className="flex flex-wrap items-center justify-between rounded-lg border p-3"
