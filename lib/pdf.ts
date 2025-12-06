@@ -161,25 +161,20 @@ export async function generatePrescriptionPdfBuffer(
 
   y -= LEAD + 2;
 
-  const headerSpecialtyLine =
-    doctor?.specialty || "";
+  const headerSpecialtyLine = doctor?.specialty || "";
   drawText(headerSpecialtyLine, margin, y, { size: SMALL });
   y -= LEAD;
 
-  const headerChamberNameLine =
-    doctor?.chamberName || "";
+  const headerChamberNameLine = doctor?.chamberName || "";
   drawText(headerChamberNameLine, margin, y, { size: SMALL });
   y -= LEAD;
 
-  const headerChamberAddressLine =
-    doctor?.chamberAddress || "";
+  const headerChamberAddressLine = doctor?.chamberAddress || "";
   drawText(headerChamberAddressLine, margin, y, { size: SMALL });
 
   let rightY = H - margin - LEAD - 2;
 
-  const bmdcLine = doctor?.bmdcNo
-    ? `BMDC Reg. No.: ${doctor.bmdcNo}`
-    : "";
+  const bmdcLine = doctor?.bmdcNo ? `BMDC Reg. No.: ${doctor.bmdcNo}` : "";
 
   drawText(bmdcLine, W - margin, rightY, {
     size: SMALL,
@@ -187,9 +182,7 @@ export async function generatePrescriptionPdfBuffer(
   });
   rightY -= LEAD;
 
-  const clinicLine = doctor?.chamberName
-    ? `Clinic: ${doctor.chamberName}`
-    : "";
+  const clinicLine = doctor?.chamberName ? `Clinic: ${doctor.chamberName}` : "";
 
   drawText(clinicLine, W - margin, rightY, {
     size: SMALL,
@@ -197,9 +190,7 @@ export async function generatePrescriptionPdfBuffer(
   });
   rightY -= LEAD;
 
-  const phoneLine = doctor?.mobile
-    ? `Phone: ${doctor.mobile}`
-    : "";
+  const phoneLine = doctor?.mobile ? `Phone: ${doctor.mobile}` : "";
 
   drawText(phoneLine, W - margin, rightY, {
     size: SMALL,
@@ -326,6 +317,22 @@ export async function generatePrescriptionPdfBuffer(
   });
 
   yLeft -= LEAD * 1;
+  const followupDays =
+    typeof data.followupDays === "number" && data.followupDays > 0
+      ? data.followupDays
+      : undefined;
+
+  let reviewText = "";
+  let reviewDateText = "";
+
+  if (followupDays && data.date) {
+    const baseDate = new Date(data.date);
+    const nextDate = addDays(baseDate, followupDays);
+    reviewText = `Follow Up After ${followupDays} day${
+      followupDays > 1 ? "s" : ""
+    }`;
+    reviewDateText = formatFollowupDate(nextDate);
+  }
 
   const dx = (data.dx ?? []).filter(Boolean);
   dx.forEach((s) => {
@@ -341,6 +348,26 @@ export async function generatePrescriptionPdfBuffer(
     }
     yLeft -= LEAD;
   });
+
+  if (reviewText || reviewDateText) {
+    yLeft -= LEAD * 2;
+
+    if (reviewText) {
+      drawText(reviewText, leftX, yLeft, {
+        size: H1,
+        bold: true,
+      });
+      yLeft -= LEAD + 2;
+    }
+
+    if (reviewDateText) {
+      drawText(reviewDateText, leftX + 4, yLeft, {
+        size: BODY + 1,
+        bold: true,
+      });
+      yLeft -= LEAD;
+    }
+  }
 
   drawText("Rx.", rightX, yRight, { bold: true, size: H1 });
   underlineTitle(rightX, yRight, "Rx.");
@@ -422,37 +449,6 @@ export async function generatePrescriptionPdfBuffer(
   });
 
   drawLine(margin, margin, W - margin, margin, 0.7);
-
-  const followupDays =
-    typeof data.followupDays === "number" && data.followupDays > 0
-      ? data.followupDays
-      : undefined;
-
-  let reviewText = "— Review after 2 weeks —";
-  let reviewDateText = "";
-
-  if (followupDays && data.date) {
-    const baseDate = new Date(data.date);
-    const nextDate = addDays(baseDate, followupDays);
-    reviewText = `— Review after ${followupDays} day${
-      followupDays > 1 ? "s" : ""
-    } —`;
-    reviewDateText = formatFollowupDate(nextDate);
-  }
-
-  drawText(reviewText, W - margin, margin + 16, {
-    size: SMALL,
-    color: { r: 0.37, g: 0.37, b: 0.37 },
-    align: "right",
-  });
-
-  if (reviewDateText) {
-    drawText(reviewDateText, W - margin, margin + 4, {
-      size: SMALL,
-      color: { r: 0.37, g: 0.37, b: 0.37 },
-      align: "right",
-    });
-  }
 
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;

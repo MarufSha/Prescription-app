@@ -353,7 +353,7 @@ function PreviousPrescriptionPageInner() {
       }
 
       default:
-        return row.id ?? 0; // safety fallback
+        return row.id ?? 0;
     }
   };
   const filteredItems = useMemo(() => {
