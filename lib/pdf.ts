@@ -147,7 +147,7 @@ export async function generatePrescriptionPdfBuffer(
 
   // === Header Start ===
 
-  const LIGHT_GREEN = { r: 0.25, g: 0.77, b: 0.45 };
+  const LIGHT_GREEN = { r: 0.016, g: 0.357, b: 0.106 };
   const DEEP_PURPLE = { r: 0.36, g: 0.22, b: 0.6 };
 
   const docName = doctor?.name ?? "";
