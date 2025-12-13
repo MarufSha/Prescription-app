@@ -147,8 +147,9 @@ export async function generatePrescriptionPdfBuffer(
 
   // === Header Start ===
 
-  const LIGHT_GREEN = { r: 0.016, g: 0.357, b: 0.106 };
+  // const LIGHT_GREEN = { r: 0.016, g: 0.357, b: 0.106 };
   const DEEP_PURPLE = { r: 0.36, g: 0.22, b: 0.6 };
+  const GREEN = { r: 0.020, g: 0.498, b: 0.043 };
 
   const docName = doctor?.name ?? "";
 
@@ -164,7 +165,7 @@ export async function generatePrescriptionPdfBuffer(
   drawText(docName, margin, y, {
     size: H1 + 2,
     bold: true,
-    color: LIGHT_GREEN,
+    color: GREEN,
   });
 
   y -= LEAD + 2;
@@ -190,7 +191,7 @@ export async function generatePrescriptionPdfBuffer(
   if (bmdcLine) {
     drawText(bmdcLine, margin, y, {
       size: SMALL + 1,
-      color: LIGHT_GREEN,
+      color: GREEN,
     });
     y -= LEAD;
   }
