@@ -41,6 +41,7 @@ const doctorFormSchema = z.object({
       message: "Enter a valid mobile number.",
     }),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
+  designation: z.string().optional().or(z.literal("")),
 });
 
 type DoctorFormValues = z.infer<typeof doctorFormSchema>;
@@ -54,6 +55,7 @@ const defaultValues: DoctorFormValues = {
   chamberAddress: "",
   mobile: "",
   email: "",
+  designation: "",
 };
 
 export default function DoctorProfile() {
@@ -75,7 +77,6 @@ export default function DoctorProfile() {
         .filter(Boolean) ?? [];
 
     if (editingId != null) {
-      // ✅ edit path
       doctorStore.updateDoctor(editingId, {
         name: values.name.trim(),
         degrees: degreesArr,
@@ -85,9 +86,9 @@ export default function DoctorProfile() {
         chamberAddress: values.chamberAddress.trim(),
         mobile: values.mobile.trim(),
         email: values.email?.trim() || undefined,
+        designation: values.designation?.trim() || undefined,
       });
     } else {
-      // ✅ add path
       const newId = doctorStore.nextDoctorId();
       const payload: DoctorTypeData = {
         id: newId,
@@ -99,6 +100,7 @@ export default function DoctorProfile() {
         chamberAddress: values.chamberAddress.trim(),
         mobile: values.mobile.trim(),
         email: values.email?.trim() || undefined,
+        designation: values.designation?.trim() || undefined,
       };
 
       doctorStore.addDoctor(payload);
@@ -110,9 +112,7 @@ export default function DoctorProfile() {
       }
     }
 
-    // 🔔 this is what forces the UI to refresh for BOTH add + edit
     notifyDoctorsStore();
-
     setEditingId(null);
     form.reset(defaultValues);
   };
@@ -163,6 +163,7 @@ export default function DoctorProfile() {
       chamberAddress: doc.chamberAddress ?? "",
       mobile: doc.mobile ?? "",
       email: doc.email ?? "",
+      designation: doc.designation ?? "",
     });
   }
 
@@ -186,7 +187,7 @@ export default function DoctorProfile() {
                   <FormItem>
                     <FormLabel>Doctor Name *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Dr. Abdullah Al Mamun" />
+                      <Input {...field} placeholder="Dr. John Doe" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -200,7 +201,7 @@ export default function DoctorProfile() {
                   <FormItem>
                     <FormLabel>Specialty *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Medicine Specialist" />
+                      <Input {...field} placeholder="X Specialist" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -253,6 +254,19 @@ export default function DoctorProfile() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="designation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Designation (optional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="doctor at XXXXX" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField
@@ -281,7 +295,7 @@ export default function DoctorProfile() {
                   <FormItem>
                     <FormLabel>Chamber Name *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="City Health Clinic" />
+                      <Input {...field} placeholder="X Health Clinic" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -295,10 +309,7 @@ export default function DoctorProfile() {
                   <FormItem>
                     <FormLabel>Chamber Address *</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="House-12, Road-5, Dhanmondi, Dhaka"
-                      />
+                      <Input {...field} placeholder="House-12, Road-5, X, X" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -388,6 +399,9 @@ export default function DoctorProfile() {
                     <div className="text-xs text-muted-foreground">
                       {doc.mobile}
                       {doc.email && <> · {doc.email}</>}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {doc.designation}
                     </div>
                   </div>
 

@@ -8,6 +8,7 @@ export type DoctorTypeData = {
   chamberAddress: string;
   mobile: string;
   email?: string;
+  designation?: string;
   //signatureUrl?: string;
   //logoUrl?: string;
 };

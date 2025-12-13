@@ -145,60 +145,92 @@ export async function generatePrescriptionPdfBuffer(
     return `${day}${suffix} ${month}, ${year}`;
   };
 
-  const headerNameLine = doctor
-    ? [
-        doctor.name,
-        doctor.degrees && doctor.degrees.length
-          ? `, ${doctor.degrees.join(", ")}`
-          : "",
-      ].join("")
-    : "";
+  // === Header Start ===
 
-  drawText(headerNameLine, margin, y, {
-    size: H1,
+  const LIGHT_GREEN = { r: 0.25, g: 0.77, b: 0.45 };
+  const DEEP_PURPLE = { r: 0.36, g: 0.22, b: 0.6 };
+
+  const docName = doctor?.name ?? "";
+
+  const degreesArr = (doctor?.degrees ?? []).filter(Boolean);
+  const degLine1 = degreesArr.slice(0, 2).join(", ");
+  const degLine2 = degreesArr.slice(2, 4).join(", ");
+  //!IMPORTANT! {Just doing four degrees}
+  const designationLine = doctor?.designation?.trim() ?? "";
+
+  const bmdcLine = doctor?.bmdcNo ? `BMDC Reg. No: ${doctor.bmdcNo}` : "";
+
+  // LEFT COLUMN
+  drawText(docName, margin, y, {
+    size: H1 + 2,
     bold: true,
+    color: LIGHT_GREEN,
   });
 
   y -= LEAD + 2;
 
-  const headerSpecialtyLine = doctor?.specialty || "";
-  drawText(headerSpecialtyLine, margin, y, { size: SMALL });
-  y -= LEAD;
+  if (degLine1) {
+    drawText(degLine1, margin, y, { size: SMALL + 1 });
+    y -= LEAD - 2;
+  }
 
-  const headerChamberNameLine = doctor?.chamberName || "";
-  drawText(headerChamberNameLine, margin, y, { size: SMALL });
-  y -= LEAD;
+  if (degLine2) {
+    drawText(degLine2, margin, y, { size: SMALL + 1 });
+    y -= LEAD - 2;
+  }
 
-  const headerChamberAddressLine = doctor?.chamberAddress || "";
-  drawText(headerChamberAddressLine, margin, y, { size: SMALL });
+  if (designationLine) {
+    drawText(designationLine, margin, y, {
+      size: SMALL + 1,
+      color: DEEP_PURPLE,
+    });
+    y -= LEAD - 2;
+  }
 
-  let rightY = H - margin - LEAD - 2;
+  if (bmdcLine) {
+    drawText(bmdcLine, margin, y, {
+      size: SMALL + 1,
+      color: LIGHT_GREEN,
+    });
+    y -= LEAD;
+  }
 
-  const bmdcLine = doctor?.bmdcNo ? `BMDC Reg. No.: ${doctor.bmdcNo}` : "";
+  // RIGHT COLUMN
+  let rightY = H - margin - (LEAD + 2);
 
-  drawText(bmdcLine, W - margin, rightY, {
-    size: SMALL,
-    align: "right",
-  });
-  rightY -= LEAD;
-
-  const clinicLine = doctor?.chamberName ? `Clinic: ${doctor.chamberName}` : "";
-
-  drawText(clinicLine, W - margin, rightY, {
-    size: SMALL,
-    align: "right",
-  });
-  rightY -= LEAD;
-
+  const chamberName = doctor?.chamberName ?? "";
+  const chamberAddress = doctor?.chamberAddress ?? "";
   const phoneLine = doctor?.mobile ? `Phone: ${doctor.mobile}` : "";
 
-  drawText(phoneLine, W - margin, rightY, {
-    size: SMALL,
-    align: "right",
-  });
+  if (chamberName) {
+    drawText(chamberName, W - margin, rightY, {
+      size: SMALL + 1,
+      align: "right",
+    });
+    rightY -= LEAD - 2;
+  }
 
-  const headerBottom = Math.min(y, rightY) - 10;
+  if (chamberAddress) {
+    drawText(chamberAddress, W - margin, rightY, {
+      size: SMALL + 1,
+      align: "right",
+    });
+    rightY -= LEAD - 2;
+  }
+
+  if (phoneLine) {
+    drawText(phoneLine, W - margin, rightY, {
+      size: SMALL + 1,
+      align: "right",
+    });
+    rightY -= LEAD;
+  }
+
+  // HEADER DIVIDER
+  const headerBottom = Math.min(y, rightY) + 2;
   drawLine(margin, headerBottom, W - margin, headerBottom, 1);
+
+  // === Header End ===
 
   const rightColX = W - margin - 360;
   const gap = 110;
